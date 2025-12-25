@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Nordlys-Labs/openai-go/v3"
+	"github.com/Nordlys-Labs/openai-go"
 	"github.com/ebitengine/oto/v3"
 )
 

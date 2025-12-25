@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nordlys-Labs/openai-go/v3/internal"
-	"github.com/Nordlys-Labs/openai-go/v3/internal/apierror"
-	"github.com/Nordlys-Labs/openai-go/v3/internal/apiform"
-	"github.com/Nordlys-Labs/openai-go/v3/internal/apiquery"
+	"github.com/Nordlys-Labs/openai-go/internal"
+	"github.com/Nordlys-Labs/openai-go/internal/apierror"
+	"github.com/Nordlys-Labs/openai-go/internal/apiform"
+	"github.com/Nordlys-Labs/openai-go/internal/apiquery"
 	"github.com/tidwall/gjson"
 )
 

@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/Nordlys-Labs/openai-go/v3/internal/apijson"
-	shimjson "github.com/Nordlys-Labs/openai-go/v3/internal/encoding/json"
-	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
-	"github.com/Nordlys-Labs/openai-go/v3/option"
-	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
+	"github.com/Nordlys-Labs/openai-go/internal/apijson"
+	shimjson "github.com/Nordlys-Labs/openai-go/internal/encoding/json"
+	"github.com/Nordlys-Labs/openai-go/internal/requestconfig"
+	"github.com/Nordlys-Labs/openai-go/option"
+	"github.com/Nordlys-Labs/openai-go/packages/param"
 )
 
 // CallService contains methods and other services that help with interacting with

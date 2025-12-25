@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Nordlys-Labs/openai-go/v3"
+	"github.com/Nordlys-Labs/openai-go"
 )
 
 func main() {

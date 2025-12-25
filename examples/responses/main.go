@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/Nordlys-Labs/openai-go/v3"
-	"github.com/Nordlys-Labs/openai-go/v3/responses"
+	"github.com/Nordlys-Labs/openai-go"
+	"github.com/Nordlys-Labs/openai-go/responses"
 )
 
 func main() {

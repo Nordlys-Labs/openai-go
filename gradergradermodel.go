@@ -5,13 +5,13 @@ package openai
 import (
 	"encoding/json"
 
-	"github.com/Nordlys-Labs/openai-go/v3/internal/apijson"
-	"github.com/Nordlys-Labs/openai-go/v3/option"
-	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
-	"github.com/Nordlys-Labs/openai-go/v3/packages/respjson"
-	"github.com/Nordlys-Labs/openai-go/v3/responses"
-	"github.com/Nordlys-Labs/openai-go/v3/shared"
-	"github.com/Nordlys-Labs/openai-go/v3/shared/constant"
+	"github.com/Nordlys-Labs/openai-go/internal/apijson"
+	"github.com/Nordlys-Labs/openai-go/option"
+	"github.com/Nordlys-Labs/openai-go/packages/param"
+	"github.com/Nordlys-Labs/openai-go/packages/respjson"
+	"github.com/Nordlys-Labs/openai-go/responses"
+	"github.com/Nordlys-Labs/openai-go/shared"
+	"github.com/Nordlys-Labs/openai-go/shared/constant"
 )
 
 // GraderGraderModelService contains methods and other services that help with

@@ -8,11 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Nordlys-Labs/openai-go/v3"
-	"github.com/Nordlys-Labs/openai-go/v3/internal/testutil"
-	"github.com/Nordlys-Labs/openai-go/v3/option"
-	"github.com/Nordlys-Labs/openai-go/v3/shared"
-	"github.com/Nordlys-Labs/openai-go/v3/shared/constant"
+	"github.com/Nordlys-Labs/openai-go"
+	"github.com/Nordlys-Labs/openai-go/internal/testutil"
+	"github.com/Nordlys-Labs/openai-go/option"
+	"github.com/Nordlys-Labs/openai-go/shared"
+	"github.com/Nordlys-Labs/openai-go/shared/constant"
 )
 
 func TestBetaAssistantNewWithOptionalParams(t *testing.T) {

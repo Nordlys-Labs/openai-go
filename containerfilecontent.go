@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
-	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go/internal/requestconfig"
+	"github.com/Nordlys-Labs/openai-go/option"
 )
 
 // ContainerFileContentService contains methods and other services that help with

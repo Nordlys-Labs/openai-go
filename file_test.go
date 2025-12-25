@@ -12,9 +12,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Nordlys-Labs/openai-go/v3"
-	"github.com/Nordlys-Labs/openai-go/v3/internal/testutil"
-	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go"
+	"github.com/Nordlys-Labs/openai-go/internal/testutil"
+	"github.com/Nordlys-Labs/openai-go/option"
 )
 
 func TestFileNewWithOptionalParams(t *testing.T) {

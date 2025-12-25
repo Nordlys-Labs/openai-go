@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Nordlys-Labs/openai-go/v3"
-	"github.com/Nordlys-Labs/openai-go/v3/azure"
+	"github.com/Nordlys-Labs/openai-go"
+	"github.com/Nordlys-Labs/openai-go/azure"
 )
 
 func Example_authentication() {
