@@ -1,4 +1,4 @@
-module github.com/Nordlys-Labs/openai-go/v3
+module github.com/Nordlys-Labs/openai-go
 
 go 1.22
 
