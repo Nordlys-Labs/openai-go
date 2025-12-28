@@ -2,8 +2,9 @@ package apijson
 
 import (
 	"errors"
-	"github.com/Nordlys-Labs/openai-go/packages/param"
 	"reflect"
+
+	"github.com/Nordlys-Labs/openai-go/packages/param"
 
 	"github.com/tidwall/gjson"
 )
@@ -78,14 +79,20 @@ func (d *decoderBuilder) newStructUnionDecoder(t reflect.Type) decoderFunc {
 
 	return func(n gjson.Result, v reflect.Value, state *decoderState) error {
 		if discriminated && n.Type == gjson.JSON && len(unionEntry.discriminatorKey) != 0 {
-			discriminator := n.Get(EscapeSJSONKey(unionEntry.discriminatorKey)).Value()
-			for _, decoder := range discriminatedDecoders {
-				if discriminator == decoder.discriminator {
-					inner := v.FieldByIndex(decoder.field.Index)
-					return decoder.decoder(n, inner, state)
+			discriminatorResult := n.Get(EscapeSJSONKey(unionEntry.discriminatorKey))
+			// Only use discriminator logic if the field actually exists in the JSON
+			if discriminatorResult.Exists() {
+				discriminator := discriminatorResult.Value()
+				for _, decoder := range discriminatedDecoders {
+					if discriminator == decoder.discriminator {
+						inner := v.FieldByIndex(decoder.field.Index)
+						return decoder.decoder(n, inner, state)
+					}
 				}
+				// Discriminator field exists but value doesn't match any variant
+				// Fall through to try-all-variants logic instead of failing immediately
 			}
-			return errors.New("apijson: was not able to find discriminated union variant")
+			// If discriminator field doesn't exist, fall through to try-all-variants
 		}
 
 		// Set bestExactness to worse than loose
@@ -155,20 +162,24 @@ func (d *decoderBuilder) newUnionDecoder(t reflect.Type) decoderFunc {
 	}
 	return func(n gjson.Result, v reflect.Value, state *decoderState) error {
 		// If there is a discriminator match, circumvent the exactness logic entirely
-		for idx, variant := range unionEntry.variants {
-			decoder := decoders[idx]
-			if variant.TypeFilter != n.Type {
-				continue
-			}
-
-			if len(unionEntry.discriminatorKey) != 0 {
-				discriminatorValue := n.Get(EscapeSJSONKey(unionEntry.discriminatorKey)).Value()
-				if discriminatorValue == variant.DiscriminatorValue {
-					inner := reflect.New(variant.Type).Elem()
-					err := decoder(n, inner, state)
-					v.Set(inner)
-					return err
+		if len(unionEntry.discriminatorKey) != 0 {
+			discriminatorResult := n.Get(EscapeSJSONKey(unionEntry.discriminatorKey))
+			if discriminatorResult.Exists() {
+				discriminatorValue := discriminatorResult.Value()
+				for idx, variant := range unionEntry.variants {
+					decoder := decoders[idx]
+					if variant.TypeFilter != n.Type {
+						continue
+					}
+					if discriminatorValue == variant.DiscriminatorValue {
+						inner := reflect.New(variant.Type).Elem()
+						err := decoder(n, inner, state)
+						v.Set(inner)
+						return err
+					}
 				}
+				// Discriminator exists but no variant matched - fall through to exactness logic
+				// (This allows unknown discriminators to be handled by exactness matching)
 			}
 		}
 

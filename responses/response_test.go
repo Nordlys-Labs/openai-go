@@ -4,6 +4,7 @@ package responses_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"testing"
@@ -201,5 +202,38 @@ func TestResponseCompactWithOptionalParams(t *testing.T) {
 			t.Log(string(apierr.DumpRequest(true)))
 		}
 		t.Fatalf("err should be nil: %s", err.Error())
+	}
+}
+
+func TestResponseInputItemUnionParam_NoTypeField(t *testing.T) {
+	// This is the format that OpenAI's "easy input" messages use
+	jsonData := []byte(`{"role":"user","content":[{"type":"input_text","text":"hello"}]}`)
+
+	var item responses.ResponseInputItemUnionParam
+	err := json.Unmarshal(jsonData, &item)
+	if err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if item.OfMessage == nil {
+		t.Fatal("Expected OfMessage (EasyInputMessageParam) to be set")
+	}
+	if string(item.OfMessage.Role) != "user" {
+		t.Errorf("Expected role 'user', got '%s'", item.OfMessage.Role)
+	}
+}
+
+func TestResponseNewParamsInputUnion_ArrayInput(t *testing.T) {
+	// Full input array without type fields on messages
+	jsonData := []byte(`[{"role":"user","content":[{"type":"input_text","text":"how does ai work"}]}]`)
+
+	var input responses.ResponseNewParamsInputUnion
+	err := json.Unmarshal(jsonData, &input)
+	if err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if len(input.OfInputItemList) != 1 {
+		t.Fatalf("Expected 1 item, got %d", len(input.OfInputItemList))
 	}
 }
