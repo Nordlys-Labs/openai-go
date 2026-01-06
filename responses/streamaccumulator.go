@@ -24,8 +24,10 @@ type ResponseAccumulator struct {
 type FinishedResponseText struct{ Text string }
 
 type FinishedResponseToolCall struct {
-	CallID string
-	Index  int64
+	CallID    string
+	Index     int64
+	Name      string
+	Arguments string
 }
 
 type FinishedResponseRefusal struct{ Refusal string }
@@ -135,7 +137,7 @@ func (acc *ResponseAccumulator) AddEvent(event ResponseStreamEventUnion) bool {
 		acc.nextToolIndex++
 		acc.toolCallIndices[event.ItemID] = idx
 		acc.justFinishedType = "function_call_args_done"
-		acc.justFinishedTool = FinishedResponseToolCall{CallID: event.ItemID, Index: idx}
+		acc.justFinishedTool = FinishedResponseToolCall{CallID: event.ItemID, Index: idx, Name: event.Name, Arguments: event.Arguments}
 		return true
 	case "response.reasoning_text.done":
 		acc.justFinishedType = "reasoning_done"
