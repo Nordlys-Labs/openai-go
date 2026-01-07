@@ -2,6 +2,7 @@ package ssestream_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/Nordlys-Labs/openai-go"
@@ -511,4 +512,419 @@ func TestStreamRealWorldScenarios(t *testing.T) {
 			t.Errorf("Stream should complete without error, got: %v", stream.Err())
 		}
 	})
+}
+
+// ============================================================================
+// TestPeekAndPeekN - Peek functionality tests
+// ============================================================================
+// These tests verify that Peek and PeekN work correctly for lookahead without consuming.
+
+func TestPeekBasic(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+		{Data: []byte(`{"id":"3","data":"third"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// First Peek should return first event
+	peeked, ok := stream.Peek()
+	if !ok {
+		t.Fatal("Peek should return true for first event")
+	}
+	if peeked.ID != "1" {
+		t.Errorf("Expected peeked ID '1', got '%s'", peeked.ID)
+	}
+
+	// Second Peek should return same event (idempotent)
+	peeked2, ok := stream.Peek()
+	if !ok {
+		t.Fatal("Second Peek should also return true")
+	}
+	if peeked2.ID != "1" {
+		t.Errorf("Expected same peeked ID '1', got '%s'", peeked2.ID)
+	}
+
+	// Next should return the peeked event
+	if !stream.Next() {
+		t.Fatal("Next should return true after Peek")
+	}
+	current := stream.Current()
+	if current.ID != "1" {
+		t.Errorf("Expected current ID '1', got '%s'", current.ID)
+	}
+
+	// Next should return second event
+	if !stream.Next() {
+		t.Fatal("Next should return true for second event")
+	}
+	current = stream.Current()
+	if current.ID != "2" {
+		t.Errorf("Expected current ID '2', got '%s'", current.ID)
+	}
+
+	// Peek should now return third event
+	peeked3, ok := stream.Peek()
+	if !ok {
+		t.Fatal("Peek should return true for third event")
+	}
+	if peeked3.ID != "3" {
+		t.Errorf("Expected peeked ID '3', got '%s'", peeked3.ID)
+	}
+
+	if stream.Err() != nil {
+		t.Errorf("Unexpected error: %v", stream.Err())
+	}
+}
+
+func TestPeekEmptyStream(t *testing.T) {
+	decoder := &mockDecoder{events: []ssestream.Event{}}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	peeked, ok := stream.Peek()
+	if ok {
+		t.Error("Peek should return false on empty stream")
+	}
+	var zero testStruct
+	if peeked != zero {
+		t.Error("Peek should return zero value on empty stream")
+	}
+}
+
+func TestPeekAfterNext(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+		{Data: []byte(`{"id":"3","data":"third"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// Consume first event with Next
+	if !stream.Next() {
+		t.Fatal("Next should return true")
+	}
+
+	// Peek should return second event
+	peeked, ok := stream.Peek()
+	if !ok {
+		t.Fatal("Peek should return true after consuming first event")
+	}
+	if peeked.ID != "2" {
+		t.Errorf("Expected peeked ID '2', got '%s'", peeked.ID)
+	}
+
+	if stream.Err() != nil {
+		t.Errorf("Unexpected error: %v", stream.Err())
+	}
+}
+
+func TestPeekAfterError(t *testing.T) {
+	decoder := &mockDecoder{
+		events: []ssestream.Event{},
+		err:    errors.New("stream error"),
+	}
+	stream := ssestream.NewStream[testStruct](decoder, errors.New("initial error"))
+
+	peeked, ok := stream.Peek()
+	if ok {
+		t.Error("Peek should return false after error")
+	}
+	var zero testStruct
+	if peeked != zero {
+		t.Error("Peek should return zero value after error")
+	}
+}
+
+func TestPeekWithDoneEvent(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte("[DONE]")},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// Peek should return first event
+	peeked, ok := stream.Peek()
+	if !ok {
+		t.Fatal("Peek should return true")
+	}
+	if peeked.ID != "1" {
+		t.Errorf("Expected peeked ID '1', got '%s'", peeked.ID)
+	}
+
+	// Consume first event
+	if !stream.Next() {
+		t.Fatal("Next should return true")
+	}
+	if stream.Current().ID != "1" {
+		t.Error("Expected first event")
+	}
+
+	// Peek should return false (stream is done)
+	_, ok = stream.Peek()
+	if ok {
+		t.Error("Peek should return false after [DONE]")
+	}
+}
+
+func TestPeekWithPingEvents(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte{}}, // ping
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// Peek should skip ping and return first event
+	peeked, ok := stream.Peek()
+	if !ok {
+		t.Fatal("Peek should return true")
+	}
+	if peeked.ID != "1" {
+		t.Errorf("Expected peeked ID '1', got '%s'", peeked.ID)
+	}
+
+	if stream.Err() != nil {
+		t.Errorf("Unexpected error: %v", stream.Err())
+	}
+}
+
+func TestPeekN(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+		{Data: []byte(`{"id":"3","data":"third"}`)},
+		{Data: []byte(`{"id":"4","data":"fourth"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// PeekN(3) should return first 3 events
+	peeks := stream.PeekN(3)
+	if len(peeks) != 3 {
+		t.Errorf("Expected 3 events from PeekN, got %d", len(peeks))
+	}
+	for i, p := range peeks {
+		if p.ID != fmt.Sprintf("%d", i+1) {
+			t.Errorf("PeekN[%d]: expected ID '%d', got '%s'", i, i+1, p.ID)
+		}
+	}
+
+	// Next should return first peeked event
+	if !stream.Next() {
+		t.Fatal("Next should return true")
+	}
+	if stream.Current().ID != "1" {
+		t.Errorf("Expected ID '1', got '%s'", stream.Current().ID)
+	}
+
+	// Next should return second peeked event
+	if !stream.Next() {
+		t.Fatal("Next should return true")
+	}
+	if stream.Current().ID != "2" {
+		t.Errorf("Expected ID '2', got '%s'", stream.Current().ID)
+	}
+
+	// PeekN(2) should now return events 3 and 4
+	peeks = stream.PeekN(2)
+	if len(peeks) != 2 {
+		t.Errorf("Expected 2 events from PeekN, got %d", len(peeks))
+	}
+	if peeks[0].ID != "3" || peeks[1].ID != "4" {
+		t.Errorf("Expected IDs '3' and '4', got '%s' and '%s'", peeks[0].ID, peeks[1].ID)
+	}
+
+	if stream.Err() != nil {
+		t.Errorf("Unexpected error: %v", stream.Err())
+	}
+}
+
+func TestPeekNWithInsufficientEvents(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// PeekN(5) should return only 2 events (available)
+	peeks := stream.PeekN(5)
+	if len(peeks) != 2 {
+		t.Errorf("Expected 2 events from PeekN, got %d", len(peeks))
+	}
+
+	// Next should consume the first
+	if !stream.Next() {
+		t.Fatal("Next should return true")
+	}
+	if stream.Current().ID != "1" {
+		t.Errorf("Expected ID '1', got '%s'", stream.Current().ID)
+	}
+
+	// PeekN should now return 1 event
+	peeks = stream.PeekN(5)
+	if len(peeks) != 1 {
+		t.Errorf("Expected 1 event from PeekN, got %d", len(peeks))
+	}
+
+	if stream.Err() != nil {
+		t.Errorf("Unexpected error: %v", stream.Err())
+	}
+}
+
+func TestPeekNZeroOrNegative(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	peeks := stream.PeekN(0)
+	if peeks != nil {
+		t.Error("PeekN(0) should return nil")
+	}
+
+	peeks = stream.PeekN(-1)
+	if peeks != nil {
+		t.Error("PeekN(-1) should return nil")
+	}
+}
+
+func TestPeekNEmptyStream(t *testing.T) {
+	decoder := &mockDecoder{events: []ssestream.Event{}}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	peeks := stream.PeekN(3)
+	// PeekN returns nil or empty slice for empty stream
+	if peeks == nil {
+		t.Error("PeekN on empty stream should return nil or empty slice")
+	}
+}
+
+func TestPeekMixedWithNext(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+		{Data: []byte(`{"id":"3","data":"third"}`)},
+		{Data: []byte(`{"id":"4","data":"fourth"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// Interleave Peek and Next
+	peek1, ok := stream.Peek()
+	if !ok || peek1.ID != "1" {
+		t.Errorf("Expected peek of '1', got ok=%v, id='%s'", ok, peek1.ID)
+	}
+
+	// This consumes the peeked "1"
+	if !stream.Next() {
+		t.Fatal("Next should succeed")
+	}
+	if stream.Current().ID != "1" {
+		t.Errorf("Expected current '1', got '%s'", stream.Current().ID)
+	}
+
+	// Now peek next 2 events
+	peek2 := stream.PeekN(2)
+	if len(peek2) != 2 {
+		t.Errorf("Expected PeekN(2) to return 2 events, got len=%d", len(peek2))
+	}
+	if peek2[0].ID != "2" || peek2[1].ID != "3" {
+		t.Errorf("Expected PeekN to return '2' and '3', got '%s' and '%s'", peek2[0].ID, peek2[1].ID)
+	}
+
+	peek3, ok := stream.Peek()
+	if !ok || peek3.ID != "2" {
+		t.Errorf("Expected peek of '2', got ok=%v, id='%s'", ok, peek3.ID)
+	}
+
+	// After consuming peeked events, we have [2, 3] in buffer, stream still has 4
+	// The loop should consume 2, 3, 4
+	ids := []string{}
+	for stream.Next() {
+		ids = append(ids, stream.Current().ID)
+	}
+
+	expected := []string{"2", "3", "4"}
+	if len(ids) != len(expected) {
+		t.Errorf("Expected %d IDs, got %d", len(expected), len(ids))
+	}
+	for i, expectedID := range expected {
+		if i < len(ids) && ids[i] != expectedID {
+			t.Errorf("ID[%d]: expected '%s', got '%s'", i, expectedID, ids[i])
+		}
+	}
+
+	if stream.Err() != nil {
+		t.Errorf("Unexpected error: %v", stream.Err())
+	}
+}
+
+func TestPeekPreservesOrder(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+		{Data: []byte(`{"id":"3","data":"third"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// Peek multiple times without consuming
+	peek1, _ := stream.Peek()
+	peek2, _ := stream.Peek()
+	peek3, _ := stream.Peek()
+
+	if peek1.ID != "1" || peek2.ID != "1" || peek3.ID != "1" {
+		t.Error("Multiple Peek calls should return same event")
+	}
+
+	// Now consume all
+	var ids []string
+	for stream.Next() {
+		ids = append(ids, stream.Current().ID)
+	}
+
+	expected := []string{"1", "2", "3"}
+	if len(ids) != len(expected) {
+		t.Errorf("Expected %d IDs, got %d", len(expected), len(ids))
+	}
+}
+
+func TestPeekBufferCleanup(t *testing.T) {
+	events := []ssestream.Event{
+		{Data: []byte(`{"id":"1","data":"first"}`)},
+		{Data: []byte(`{"id":"2","data":"second"}`)},
+		{Data: []byte(`{"id":"3","data":"third"}`)},
+	}
+
+	decoder := &mockDecoder{events: events}
+	stream := ssestream.NewStream[testStruct](decoder, nil)
+
+	// Peek 3 events - should be buffered
+	stream.PeekN(3)
+
+	// Consume 3 events - should clear buffer
+	stream.Next()
+	stream.Next()
+	stream.Next()
+
+	// Buffer should be empty
+	if len(stream.PeekN(10)) != 0 {
+		t.Error("Buffer should be empty after consuming peeked events")
+	}
 }

@@ -142,6 +142,8 @@ type Stream[T any] struct {
 	cur     T
 	err     error
 	done    bool
+	buffer  []T
+	bufIdx  int
 }
 
 func NewStream[T any](decoder Decoder, err error) *Stream[T] {
@@ -151,36 +153,17 @@ func NewStream[T any](decoder Decoder, err error) *Stream[T] {
 	}
 }
 
-// Next returns false if the stream has ended or an error occurred.
-// Call Stream.Current() to get the current value.
-// Call Stream.Err() to get the error.
-//
-//		for stream.Next() {
-//			data := stream.Current()
-//		}
-//
-//	 	if stream.Err() != nil {
-//			...
-//	 	}
-func (s *Stream[T]) Next() bool {
-	if s.err != nil {
-		return false
-	}
-
+func (s *Stream[T]) readNext() bool {
 	for s.decoder.Next() {
 		if s.done {
 			continue
 		}
 
 		if bytes.HasPrefix(s.decoder.Event().Data, []byte("[DONE]")) {
-			// In this case we don't break because we still want to iterate through the full stream.
 			s.done = true
 			continue
 		}
 
-		// Skip ping events (empty or whitespace-only data)
-		// These are SSE comments or keep-alive events that should be ignored
-		// without attempting JSON unmarshal, which would fail and set an error state.
 		if isWhitespaceOrEmpty(s.decoder.Event().Data) {
 			continue
 		}
@@ -216,10 +199,37 @@ func (s *Stream[T]) Next() bool {
 		}
 	}
 
-	// decoder.Next() may be false because of an error
 	s.err = s.decoder.Err()
-
 	return false
+}
+
+// Next returns false if the stream has ended or an error occurred.
+// Call Stream.Current() to get the current value.
+// Call Stream.Err() to get the error.
+//
+//		for stream.Next() {
+//			data := stream.Current()
+//		}
+//
+//	 	if stream.Err() != nil {
+//			...
+//	 	}
+func (s *Stream[T]) Next() bool {
+	if s.err != nil {
+		return false
+	}
+
+	if s.bufIdx < len(s.buffer) {
+		s.cur = s.buffer[s.bufIdx]
+		s.bufIdx++
+		if s.bufIdx == len(s.buffer) {
+			s.buffer = s.buffer[:0]
+			s.bufIdx = 0
+		}
+		return true
+	}
+
+	return s.readNext()
 }
 
 func (s *Stream[T]) Current() T {
@@ -236,4 +246,44 @@ func (s *Stream[T]) Close() error {
 		return nil
 	}
 	return s.decoder.Close()
+}
+
+func (s *Stream[T]) Peek() (T, bool) {
+	var zero T
+	if s.err != nil {
+		return zero, false
+	}
+
+	if s.bufIdx < len(s.buffer) {
+		return s.buffer[s.bufIdx], true
+	}
+
+	if !s.readNext() {
+		return zero, false
+	}
+
+	s.buffer = append(s.buffer, s.cur)
+	return s.cur, true
+}
+
+func (s *Stream[T]) PeekN(n int) []T {
+	if n <= 0 || s.err != nil {
+		return nil
+	}
+
+	result := make([]T, 0, n)
+
+	for i := s.bufIdx; i < len(s.buffer) && len(result) < n; i++ {
+		result = append(result, s.buffer[i])
+	}
+
+	for len(result) < n {
+		if !s.readNext() {
+			break
+		}
+		s.buffer = append(s.buffer, s.cur)
+		result = append(result, s.cur)
+	}
+
+	return result
 }
