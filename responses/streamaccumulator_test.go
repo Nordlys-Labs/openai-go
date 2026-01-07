@@ -500,3 +500,328 @@ func TestResponseAccumulator_ConstantTypes(t *testing.T) {
 	_ = constant.ValueOf[constant.ResponseOutputTextDone]()
 	_ = constant.ValueOf[constant.ResponseFunctionCallArgumentsDone]()
 }
+
+func TestResponseAccumulator_FunctionCallAdded(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Add output_item.added event with function_call type
+	addItemEvent := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_123",
+			Type:   "function_call",
+			CallID: "call_123",
+			Name:   "get_weather",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_123",
+				Type:   "function_call",
+				CallID: "call_123",
+				Name:   "get_weather",
+			}},
+		},
+	}
+	if !acc.AddEvent(addItemEvent) {
+		t.Fatal("Failed to add function call item")
+	}
+
+	// Check JustAddedFunctionCall
+	if added, ok := acc.JustAddedFunctionCall(); !ok {
+		t.Error("Expected function call to be just added")
+	} else {
+		if added.CallID != "call_123" {
+			t.Errorf("Expected call_123, got '%s'", added.CallID)
+		}
+		if added.Index != 0 {
+			t.Errorf("Expected index 0, got %d", added.Index)
+		}
+		if added.Name != "get_weather" {
+			t.Errorf("Expected get_weather, got '%s'", added.Name)
+		}
+		if added.OutputIndex != 0 {
+			t.Errorf("Expected OutputIndex 0, got %d", added.OutputIndex)
+		}
+	}
+
+	// After another event, JustAddedFunctionCall should be false
+	acc.AddEvent(responses.ResponseStreamEventUnion{
+		Type: "response.completed",
+	})
+	if _, ok := acc.JustAddedFunctionCall(); ok {
+		t.Error("JustAddedFunctionCall should be false after another event")
+	}
+}
+
+func TestResponseAccumulator_FunctionCallDelta(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Add function_call item first
+	addItemEvent := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_123",
+			Type:   "function_call",
+			CallID: "call_123",
+			Name:   "get_weather",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_123",
+				Type:   "function_call",
+				CallID: "call_123",
+				Name:   "get_weather",
+			}},
+		},
+	}
+	acc.AddEvent(addItemEvent)
+
+	// Add function_call_arguments.delta
+	deltaEvent := responses.ResponseStreamEventUnion{
+		Type:   "response.function_call_arguments.delta",
+		ItemID: "item_123",
+		Delta:  `{"location":"Paris"}`,
+	}
+	if !acc.AddEvent(deltaEvent) {
+		t.Fatal("Failed to add function call delta")
+	}
+
+	// Check JustDeltaFunctionCall
+	if delta, ok := acc.JustDeltaFunctionCall(); !ok {
+		t.Error("Expected function call delta to be just received")
+	} else {
+		if delta.Index != 0 {
+			t.Errorf("Expected index 0, got %d", delta.Index)
+		}
+		if delta.Delta != `{"location":"Paris"}` {
+			t.Errorf("Expected delta with JSON, got '%s'", delta.Delta)
+		}
+		if delta.OutputIndex != 0 {
+			t.Errorf("Expected OutputIndex 0, got %d", delta.OutputIndex)
+		}
+	}
+
+	// After another event, JustDeltaFunctionCall should be false
+	acc.AddEvent(responses.ResponseStreamEventUnion{
+		Type: "response.completed",
+	})
+	if _, ok := acc.JustDeltaFunctionCall(); ok {
+		t.Error("JustDeltaFunctionCall should be false after another event")
+	}
+}
+
+func TestResponseAccumulator_GetFunctionCallMeta(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Add first function_call item (gets index 0)
+	addItemEvent1 := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_123",
+			Type:   "function_call",
+			CallID: "call_123",
+			Name:   "get_weather",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_123",
+				Type:   "function_call",
+				CallID: "call_123",
+				Name:   "get_weather",
+			}},
+		},
+	}
+	acc.AddEvent(addItemEvent1)
+
+	// Add second function_call item (gets index 1)
+	addItemEvent2 := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 1,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_456",
+			Type:   "function_call",
+			CallID: "call_456",
+			Name:   "get_time",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_456",
+				Type:   "function_call",
+				CallID: "call_456",
+				Name:   "get_time",
+			}},
+		},
+	}
+	acc.AddEvent(addItemEvent2)
+
+	// Check GetFunctionCallMeta for first call (index 0)
+	if meta, ok := acc.GetFunctionCallMeta("item_123"); !ok {
+		t.Error("Expected function call meta to be found for item_123")
+	} else {
+		if meta.CallID != "call_123" {
+			t.Errorf("Expected call_123, got '%s'", meta.CallID)
+		}
+		if meta.Name != "get_weather" {
+			t.Errorf("Expected get_weather, got '%s'", meta.Name)
+		}
+		if meta.Index != 0 {
+			t.Errorf("Expected index 0 for first call, got %d", meta.Index)
+		}
+		if meta.OutputIndex != 0 {
+			t.Errorf("Expected OutputIndex 0, got %d", meta.OutputIndex)
+		}
+	}
+
+	// Check GetFunctionCallMeta for second call (index 1)
+	if meta, ok := acc.GetFunctionCallMeta("item_456"); !ok {
+		t.Error("Expected function call meta to be found for item_456")
+	} else {
+		if meta.CallID != "call_456" {
+			t.Errorf("Expected call_456, got '%s'", meta.CallID)
+		}
+		if meta.Name != "get_time" {
+			t.Errorf("Expected get_time, got '%s'", meta.Name)
+		}
+		if meta.Index != 1 {
+			t.Errorf("Expected index 1 for second call, got %d", meta.Index)
+		}
+		if meta.OutputIndex != 1 {
+			t.Errorf("Expected OutputIndex 1, got %d", meta.OutputIndex)
+		}
+	}
+
+	// Unknown item ID should return not found
+	if _, ok := acc.GetFunctionCallMeta("unknown"); ok {
+		t.Error("GetFunctionCallMeta should return false for unknown item ID")
+	}
+}
+
+func TestResponseAccumulator_MultipleFunctionCallsWithDeltas(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Add first function call item
+	addItemEvent1 := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_1",
+			Type:   "function_call",
+			CallID: "call_1",
+			Name:   "get_weather",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_1",
+				Type:   "function_call",
+				CallID: "call_1",
+				Name:   "get_weather",
+			}},
+		},
+	}
+	acc.AddEvent(addItemEvent1)
+
+	// Add second function call item
+	addItemEvent2 := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 1,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_2",
+			Type:   "function_call",
+			CallID: "call_2",
+			Name:   "get_time",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_2",
+				Type:   "function_call",
+				CallID: "call_2",
+				Name:   "get_time",
+			}},
+		},
+	}
+	acc.AddEvent(addItemEvent2)
+
+	// Add delta for second function call
+	deltaEvent2 := responses.ResponseStreamEventUnion{
+		Type:   "response.function_call_arguments.delta",
+		ItemID: "item_2",
+		Delta:  `{"timezone":"UTC"}`,
+	}
+	acc.AddEvent(deltaEvent2)
+
+	// Check delta for second call uses correct index
+	if delta, ok := acc.JustDeltaFunctionCall(); !ok {
+		t.Error("Expected function call delta to be just received")
+	} else {
+		if delta.Index != 1 {
+			t.Errorf("Expected index 1 for second call, got %d", delta.Index)
+		}
+	}
+
+	// Add delta for first function call
+	deltaEvent1 := responses.ResponseStreamEventUnion{
+		Type:   "response.function_call_arguments.delta",
+		ItemID: "item_1",
+		Delta:  `{"location":"Paris"}`,
+	}
+	acc.AddEvent(deltaEvent1)
+
+	// Check delta for first call uses correct index
+	if delta, ok := acc.JustDeltaFunctionCall(); !ok {
+		t.Error("Expected function call delta to be just received")
+	} else {
+		if delta.Index != 0 {
+			t.Errorf("Expected index 0 for first call, got %d", delta.Index)
+		}
+	}
+}
+
+func TestResponseAccumulator_FunctionCallDeltaBeforeAdded(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Add delta before function_call item (should be handled gracefully)
+	deltaEvent := responses.ResponseStreamEventUnion{
+		Type:   "response.function_call_arguments.delta",
+		ItemID: "item_unknown",
+		Delta:  `{"test":"value"}`,
+	}
+	if !acc.AddEvent(deltaEvent) {
+		t.Fatal("Failed to add delta event")
+	}
+
+	// JustDeltaFunctionCall should return false (no metadata found)
+	if _, ok := acc.JustDeltaFunctionCall(); ok {
+		t.Error("JustDeltaFunctionCall should return false when metadata not found")
+	}
+}
+
+func TestResponseAccumulator_NonFunctionCallItemAdded(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Add output_item.added event with message type (not function_call)
+	addItemEvent := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item: responses.ResponseOutputItemUnion{
+			ID:   "item_123",
+			Type: "message",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:   "item_123",
+				Type: "message",
+			}},
+		},
+	}
+	if !acc.AddEvent(addItemEvent) {
+		t.Fatal("Failed to add message item")
+	}
+
+	// JustAddedFunctionCall should return false for non-function_call items
+	if _, ok := acc.JustAddedFunctionCall(); ok {
+		t.Error("JustAddedFunctionCall should return false for non-function_call items")
+	}
+}

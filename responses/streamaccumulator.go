@@ -5,8 +5,9 @@ package responses
 type ResponseAccumulator struct {
 	Response
 
-	toolCallIndices map[string]int64
-	nextToolIndex   int64
+	toolCallIndices  map[string]int64
+	nextToolIndex    int64
+	functionCallMeta map[string]FunctionCallMeta
 
 	// transient state set when the last AddEvent produced a "just finished" item
 	justFinishedType            string
@@ -19,6 +20,11 @@ type ResponseAccumulator struct {
 	justFinishedWebSearch       FinishedResponseWebSearch
 	justFinishedCodeInterpreter FinishedResponseCodeInterpreter
 	justFinishedError           string
+
+	// transient state for "just added" function call and delta events
+	justAddedType         string
+	justAddedFunctionCall AddedFunctionCall
+	justDeltaFunctionCall FunctionCallArgumentsDelta
 }
 
 type FinishedResponseText struct{ Text string }
@@ -44,8 +50,31 @@ type FinishedResponseCodeInterpreter struct{ ItemID string }
 
 type FinishedResponseError struct{ Err string }
 
+type FunctionCallMeta struct {
+	CallID      string
+	Name        string
+	Index       int64
+	OutputIndex int64
+}
+
+type AddedFunctionCall struct {
+	CallID      string
+	Index       int64
+	Name        string
+	OutputIndex int64
+}
+
+type FunctionCallArgumentsDelta struct {
+	Index       int64
+	Delta       string
+	OutputIndex int64
+}
+
 func NewResponseAccumulator() *ResponseAccumulator {
-	return &ResponseAccumulator{toolCallIndices: map[string]int64{}}
+	return &ResponseAccumulator{
+		toolCallIndices:  map[string]int64{},
+		functionCallMeta: map[string]FunctionCallMeta{},
+	}
 }
 
 // AddEvent incorporates a streaming event. Returns false only on mismatch errors.
@@ -61,6 +90,11 @@ func (acc *ResponseAccumulator) AddEvent(event ResponseStreamEventUnion) bool {
 	acc.justFinishedWebSearch = FinishedResponseWebSearch{}
 	acc.justFinishedCodeInterpreter = FinishedResponseCodeInterpreter{}
 	acc.justFinishedError = ""
+
+	// clear transient justAdded state
+	acc.justAddedType = ""
+	acc.justAddedFunctionCall = AddedFunctionCall{}
+	acc.justDeltaFunctionCall = FunctionCallArgumentsDelta{}
 
 	switch event.Type {
 	case "response.created":
@@ -85,6 +119,28 @@ func (acc *ResponseAccumulator) AddEvent(event ResponseStreamEventUnion) bool {
 		// In streaming, the item should already be on event.Response.Output
 		if len(event.Response.Output) > 0 {
 			acc.Output = append(acc.Output, event.Response.Output...)
+			// Handle function_call items - track metadata for delta events
+			if event.Item.Type == "function_call" {
+				idx := acc.nextToolIndex
+				acc.nextToolIndex++
+				acc.toolCallIndices[event.Item.ID] = idx
+
+				meta := FunctionCallMeta{
+					CallID:      event.Item.CallID,
+					Name:        event.Item.Name,
+					Index:       idx,
+					OutputIndex: event.OutputIndex,
+				}
+				acc.functionCallMeta[event.Item.ID] = meta
+
+				acc.justAddedType = "function_call_added"
+				acc.justAddedFunctionCall = AddedFunctionCall{
+					CallID:      event.Item.CallID,
+					Index:       idx,
+					Name:        event.Item.Name,
+					OutputIndex: event.OutputIndex,
+				}
+			}
 		}
 		return true
 	case "response.output_item.done":
@@ -129,7 +185,15 @@ func (acc *ResponseAccumulator) AddEvent(event ResponseStreamEventUnion) bool {
 		acc.justFinishedRefusal = event.Refusal
 		return true
 	case "response.function_call_arguments.delta":
-		// no-op for now
+		// Lookup metadata from output_item.added to get index and name
+		if meta, ok := acc.functionCallMeta[event.ItemID]; ok {
+			acc.justAddedType = "function_call_args_delta"
+			acc.justDeltaFunctionCall = FunctionCallArgumentsDelta{
+				Index:       meta.Index,
+				Delta:       event.Delta,
+				OutputIndex: meta.OutputIndex,
+			}
+		}
 		return true
 	case "response.function_call_arguments.done":
 		// assign an index for this item id
@@ -241,6 +305,25 @@ func (acc *ResponseAccumulator) GetToolCallIndex(callID string) int64 {
 		return idx
 	}
 	return -1
+}
+
+func (acc *ResponseAccumulator) JustAddedFunctionCall() (AddedFunctionCall, bool) {
+	if acc.justAddedType == "function_call_added" {
+		return acc.justAddedFunctionCall, true
+	}
+	return AddedFunctionCall{}, false
+}
+
+func (acc *ResponseAccumulator) JustDeltaFunctionCall() (FunctionCallArgumentsDelta, bool) {
+	if acc.justAddedType == "function_call_args_delta" {
+		return acc.justDeltaFunctionCall, true
+	}
+	return FunctionCallArgumentsDelta{}, false
+}
+
+func (acc *ResponseAccumulator) GetFunctionCallMeta(itemID string) (FunctionCallMeta, bool) {
+	meta, ok := acc.functionCallMeta[itemID]
+	return meta, ok
 }
 
 func (acc *ResponseAccumulator) IsComplete() bool {
