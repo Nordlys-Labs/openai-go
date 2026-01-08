@@ -8,12 +8,30 @@ type ChatCompletionAccumulator struct {
 	ChatCompletion
 	choiceChatCompletionStates []chatCompletionResponseState
 	justFinished               chatCompletionResponseState
+
+	// transient state for "just added" tool call and delta events
+	justAddedToolCall   AddedChatCompletionToolCall
+	justAddedToolCallOk bool
+	justDeltaToolCall   ChatCompletionToolCallArgumentsDelta
+	justDeltaToolCallOk bool
 }
 
 type FinishedChatCompletionToolCall struct {
 	ChatCompletionMessageFunctionToolCallFunction
 	Index int
 	ID    string
+}
+
+type AddedChatCompletionToolCall struct {
+	Index int
+	ID    string
+	Name  string
+	Type  string
+}
+
+type ChatCompletionToolCallArgumentsDelta struct {
+	Index int
+	Delta string
 }
 
 type chatCompletionResponseState struct {
@@ -37,7 +55,10 @@ const (
 // The ChatCompletion field JSON does not get accumulated.
 func (acc *ChatCompletionAccumulator) AddChunk(chunk ChatCompletionChunk) bool {
 	acc.justFinished = chatCompletionResponseState{}
-	if !acc.accumulateDelta(chunk) {
+	acc.justAddedToolCallOk = false
+	acc.justDeltaToolCallOk = false
+
+	if !acc.accumulateDeltaWithToolCallEvents(chunk) {
 		return false
 	}
 
@@ -95,6 +116,49 @@ func (acc *ChatCompletionAccumulator) JustFinishedToolCall() (toolcall FinishedC
 		}, true
 	}
 	return FinishedChatCompletionToolCall{}, false
+}
+
+func (acc *ChatCompletionAccumulator) JustAddedToolCall() (AddedChatCompletionToolCall, bool) {
+	if acc.justAddedToolCallOk {
+		return acc.justAddedToolCall, true
+	}
+	return AddedChatCompletionToolCall{}, false
+}
+
+func (acc *ChatCompletionAccumulator) JustDeltaToolCall() (ChatCompletionToolCallArgumentsDelta, bool) {
+	if acc.justDeltaToolCallOk {
+		return acc.justDeltaToolCall, true
+	}
+	return ChatCompletionToolCallArgumentsDelta{}, false
+}
+
+func (acc *ChatCompletionAccumulator) accumulateDeltaWithToolCallEvents(chunk ChatCompletionChunk) bool {
+	if len(chunk.Choices) > 0 {
+		delta := chunk.Choices[0].Delta
+		for j := range delta.ToolCalls {
+			deltaTool := &delta.ToolCalls[j]
+
+			if deltaTool.ID != "" {
+				acc.justAddedToolCall = AddedChatCompletionToolCall{
+					Index: int(deltaTool.Index),
+					ID:    deltaTool.ID,
+					Name:  deltaTool.Function.Name,
+					Type:  deltaTool.Type,
+				}
+				acc.justAddedToolCallOk = true
+			}
+
+			if deltaTool.Function.Arguments != "" {
+				acc.justDeltaToolCall = ChatCompletionToolCallArgumentsDelta{
+					Index: int(deltaTool.Index),
+					Delta: deltaTool.Function.Arguments,
+				}
+				acc.justDeltaToolCallOk = true
+			}
+		}
+	}
+
+	return acc.ChatCompletion.accumulateDelta(chunk)
 }
 
 // Concatenates a ChatCompletionChunk onto a ChatCompletion. Returns false and

@@ -2,6 +2,7 @@ package apijson
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/Nordlys-Labs/openai-go/packages/param"
@@ -90,7 +91,7 @@ func (d *decoderBuilder) newStructUnionDecoder(t reflect.Type) decoderFunc {
 					}
 				}
 				// Discriminator field exists but value doesn't match any variant
-				// Fall through to try-all-variants logic instead of failing immediately
+				return fmt.Errorf("apijson: discriminator value %q does not match any registered variant for key %q", discriminator, unionEntry.discriminatorKey)
 			}
 			// If discriminator field doesn't exist, fall through to try-all-variants
 		}

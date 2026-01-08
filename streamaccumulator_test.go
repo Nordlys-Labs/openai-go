@@ -92,12 +92,26 @@ func TestStreamingAccumulatorWithToolCalls(t *testing.T) {
 	var err error
 
 	anythingFinished := false
+	toolCallAdded := false
+	var addedToolCall openai.AddedChatCompletionToolCall
+	toolCallDeltaCount := 0
+	var accumulatedArgs string
 
 	for stream.Next() {
 		chunk := stream.Current()
 		if !acc.AddChunk(chunk) {
 			err = errors.New("Chunk was not incorporated correctly")
 			break
+		}
+
+		if added, ok := acc.JustAddedToolCall(); ok {
+			toolCallAdded = true
+			addedToolCall = added
+		}
+
+		if delta, ok := acc.JustDeltaToolCall(); ok {
+			toolCallDeltaCount++
+			accumulatedArgs += delta.Delta
 		}
 
 		if _, ok := acc.JustFinishedContent(); ok {
@@ -139,6 +153,22 @@ func TestStreamingAccumulatorWithToolCalls(t *testing.T) {
 
 	if !anythingFinished {
 		t.Fatalf("No finish events sent in accumulation")
+	}
+
+	if !toolCallAdded {
+		t.Fatal("JustAddedToolCall was never triggered")
+	}
+	if addedToolCall.ID != "call_FXoAjBUMcVv1k40fficJ9cSs" {
+		t.Fatalf("Expected tool call ID 'call_FXoAjBUMcVv1k40fficJ9cSs', got '%s'", addedToolCall.ID)
+	}
+	if addedToolCall.Name != "get_weather" {
+		t.Fatalf("Expected tool call name 'get_weather', got '%s'", addedToolCall.Name)
+	}
+	if toolCallDeltaCount != 8 {
+		t.Fatalf("Expected 8 JustDeltaToolCall events, got %d", toolCallDeltaCount)
+	}
+	if accumulatedArgs != `{"location":"Santorini, Greece"}` {
+		t.Fatalf("Accumulated args mismatch: got '%s'", accumulatedArgs)
 	}
 }
 
@@ -227,6 +257,164 @@ func TestAccumulateTokenDetails(t *testing.T) {
 	}
 	if acc.Usage.PromptTokensDetails.CachedTokens != 30 {
 		t.Errorf("PromptTokensDetails.CachedTokens: expected 30, got %d", acc.Usage.PromptTokensDetails.CachedTokens)
+	}
+}
+
+func TestJustAddedAndDeltaToolCall(t *testing.T) {
+	baseURL := "http://localhost:4010"
+	if envURL, ok := os.LookupEnv("TEST_API_BASE_URL"); ok {
+		baseURL = envURL
+	}
+	if !testutil.CheckTestServer(t, baseURL) {
+		return
+	}
+
+	client := openai.NewClient(
+		option.WithBaseURL(baseURL),
+		option.WithAPIKey("My API Key"),
+		option.WithMiddleware(func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
+			res, err := next(req)
+			if err != nil {
+				return nil, err
+			}
+			res.Body = io.NopCloser(strings.NewReader(mockResponseBody))
+			return res, nil
+		}),
+	)
+
+	stream := client.Chat.Completions.NewStreaming(context.TODO(), openai.ChatCompletionNewParams{
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			{OfUser: &openai.ChatCompletionUserMessageParam{
+				Content: openai.ChatCompletionUserMessageParamContentUnion{
+					OfString: openai.String("Test"),
+				},
+			}},
+		},
+		Model: openai.ChatModelGPT4o,
+	})
+
+	acc := openai.ChatCompletionAccumulator{}
+
+	var addedEvents []openai.AddedChatCompletionToolCall
+	var deltaEvents []openai.ChatCompletionToolCallArgumentsDelta
+
+	for stream.Next() {
+		chunk := stream.Current()
+		if !acc.AddChunk(chunk) {
+			t.Fatal("Failed to accumulate chunk")
+		}
+
+		if added, ok := acc.JustAddedToolCall(); ok {
+			addedEvents = append(addedEvents, added)
+		}
+		if delta, ok := acc.JustDeltaToolCall(); ok {
+			deltaEvents = append(deltaEvents, delta)
+		}
+	}
+
+	if err := stream.Err(); err != nil {
+		t.Fatalf("Stream error: %v", err)
+	}
+
+	if len(addedEvents) != 1 {
+		t.Fatalf("Expected exactly 1 JustAddedToolCall event, got %d", len(addedEvents))
+	}
+
+	added := addedEvents[0]
+	if added.Index != 0 {
+		t.Errorf("Expected Index 0, got %d", added.Index)
+	}
+	if added.ID != "call_FXoAjBUMcVv1k40fficJ9cSs" {
+		t.Errorf("Expected ID 'call_FXoAjBUMcVv1k40fficJ9cSs', got '%s'", added.ID)
+	}
+	if added.Name != "get_weather" {
+		t.Errorf("Expected Name 'get_weather', got '%s'", added.Name)
+	}
+	if added.Type != "function" {
+		t.Errorf("Expected Type 'function', got '%s'", added.Type)
+	}
+
+	if len(deltaEvents) != 8 {
+		t.Fatalf("Expected 8 JustDeltaToolCall events, got %d", len(deltaEvents))
+	}
+
+	var fullArgs string
+	for _, d := range deltaEvents {
+		fullArgs += d.Delta
+	}
+	if fullArgs != `{"location":"Santorini, Greece"}` {
+		t.Errorf("Accumulated arguments mismatch: got '%s'", fullArgs)
+	}
+
+	for i, d := range deltaEvents {
+		if d.Index != 0 {
+			t.Errorf("Delta %d: Expected Index 0, got %d", i, d.Index)
+		}
+	}
+}
+
+func TestJustAddedToolCallNotFiredWithoutToolCalls(t *testing.T) {
+	contentOnlyResponse := `data: {"id":"test","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"test","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":" world"},"finish_reason":null}]}
+
+data: {"id":"test","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+`
+	baseURL := "http://localhost:4010"
+	if envURL, ok := os.LookupEnv("TEST_API_BASE_URL"); ok {
+		baseURL = envURL
+	}
+	if !testutil.CheckTestServer(t, baseURL) {
+		return
+	}
+
+	client := openai.NewClient(
+		option.WithBaseURL(baseURL),
+		option.WithAPIKey("My API Key"),
+		option.WithMiddleware(func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
+			res, err := next(req)
+			if err != nil {
+				return nil, err
+			}
+			res.Body = io.NopCloser(strings.NewReader(contentOnlyResponse))
+			return res, nil
+		}),
+	)
+
+	stream := client.Chat.Completions.NewStreaming(context.TODO(), openai.ChatCompletionNewParams{
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			{OfUser: &openai.ChatCompletionUserMessageParam{
+				Content: openai.ChatCompletionUserMessageParamContentUnion{
+					OfString: openai.String("Hello"),
+				},
+			}},
+		},
+		Model: openai.ChatModelGPT4o,
+	})
+
+	acc := openai.ChatCompletionAccumulator{}
+	addedFired := false
+	deltaFired := false
+
+	for stream.Next() {
+		chunk := stream.Current()
+		acc.AddChunk(chunk)
+
+		if _, ok := acc.JustAddedToolCall(); ok {
+			addedFired = true
+		}
+		if _, ok := acc.JustDeltaToolCall(); ok {
+			deltaFired = true
+		}
+	}
+
+	if addedFired {
+		t.Error("JustAddedToolCall should not fire for content-only stream")
+	}
+	if deltaFired {
+		t.Error("JustDeltaToolCall should not fire for content-only stream")
 	}
 }
 
