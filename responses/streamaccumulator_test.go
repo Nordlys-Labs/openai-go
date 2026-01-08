@@ -155,10 +155,33 @@ func TestResponseAccumulator_RefusalAccumulation(t *testing.T) {
 func TestResponseAccumulator_ToolCallTracking(t *testing.T) {
 	acc := responses.NewResponseAccumulator()
 
+	// Add output_item.added for first function call
+	addItemEvent1 := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 0,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_123",
+			Type:   "function_call",
+			CallID: "call_123",
+			Name:   "get_weather",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_123",
+				Type:   "function_call",
+				CallID: "call_123",
+				Name:   "get_weather",
+			}},
+		},
+	}
+	if !acc.AddEvent(addItemEvent1) {
+		t.Fatal("Failed to add output item")
+	}
+
 	// Add function call arguments delta
 	deltaEvent := responses.ResponseStreamEventUnion{
 		Type:   "response.function_call_arguments.delta",
-		ItemID: "call_123",
+		ItemID: "item_123",
 		Delta:  `{"location"`,
 	}
 	acc.AddEvent(deltaEvent)
@@ -166,8 +189,8 @@ func TestResponseAccumulator_ToolCallTracking(t *testing.T) {
 	// Add function call arguments done
 	doneEvent := responses.ResponseStreamEventUnion{
 		Type:      "response.function_call_arguments.done",
-		ItemID:    "call_123",
-		Name:      "get_weather",
+		ItemID:    "item_123",
+		Name:      "", // OpenAI may not send name in done event
 		Arguments: `{"location":"Paris"}`,
 	}
 	if !acc.AddEvent(doneEvent) {
@@ -181,33 +204,89 @@ func TestResponseAccumulator_ToolCallTracking(t *testing.T) {
 		if finished.CallID != "call_123" {
 			t.Errorf("Expected call_123, got '%s'", finished.CallID)
 		}
+		if finished.Name != "get_weather" {
+			t.Errorf("Expected get_weather, got '%s'", finished.Name)
+		}
 		if finished.Index != 0 {
 			t.Errorf("Expected index 0, got %d", finished.Index)
 		}
 	}
 
 	// Check GetToolCallIndex
-	if idx := acc.GetToolCallIndex("call_123"); idx != 0 {
-		t.Errorf("Expected index 0 for call_123, got %d", idx)
+	if idx := acc.GetToolCallIndex("item_123"); idx != 0 {
+		t.Errorf("Expected index 0 for item_123, got %d", idx)
 	}
 
-	// Add another tool call
+	// Add output_item.added for second function call
+	addItemEvent2 := responses.ResponseStreamEventUnion{
+		Type:        "response.output_item.added",
+		OutputIndex: 1,
+		Item: responses.ResponseOutputItemUnion{
+			ID:     "item_456",
+			Type:   "function_call",
+			CallID: "call_456",
+			Name:   "get_time",
+		},
+		Response: responses.Response{
+			Output: []responses.ResponseOutputItemUnion{{
+				ID:     "item_456",
+				Type:   "function_call",
+				CallID: "call_456",
+				Name:   "get_time",
+			}},
+		},
+	}
+	acc.AddEvent(addItemEvent2)
+
+	// Add second tool call done
 	doneEvent2 := responses.ResponseStreamEventUnion{
 		Type:      "response.function_call_arguments.done",
-		ItemID:    "call_456",
-		Name:      "get_time",
+		ItemID:    "item_456",
+		Name:      "get_time", // OpenAI sends name in done event
 		Arguments: `{"timezone":"UTC"}`,
 	}
 	acc.AddEvent(doneEvent2)
 
 	// Check second tool call gets index 1
-	if idx := acc.GetToolCallIndex("call_456"); idx != 1 {
-		t.Errorf("Expected index 1 for call_456, got %d", idx)
+	if idx := acc.GetToolCallIndex("item_456"); idx != 1 {
+		t.Errorf("Expected index 1 for item_456, got %d", idx)
+	}
+
+	// Check JustFinishedToolCall for second call
+	if finished, ok := acc.JustFinishedToolCall(); !ok {
+		t.Error("Expected second tool call to be just finished")
+	} else {
+		if finished.CallID != "call_456" {
+			t.Errorf("Expected call_456, got '%s'", finished.CallID)
+		}
+		if finished.Name != "get_time" {
+			t.Errorf("Expected get_time, got '%s'", finished.Name)
+		}
+		if finished.Index != 1 {
+			t.Errorf("Expected index 1, got %d", finished.Index)
+		}
 	}
 
 	// Unknown call should return -1
 	if idx := acc.GetToolCallIndex("unknown"); idx != -1 {
 		t.Errorf("Expected -1 for unknown call, got %d", idx)
+	}
+}
+
+func TestResponseAccumulator_FunctionCallDoneWithoutAdded(t *testing.T) {
+	acc := responses.NewResponseAccumulator()
+
+	// Try to add function_call_arguments.done without output_item.added first
+	doneEvent := responses.ResponseStreamEventUnion{
+		Type:      "response.function_call_arguments.done",
+		ItemID:    "item_123",
+		Name:      "get_weather",
+		Arguments: `{"location":"Paris"}`,
+	}
+
+	// This should fail because no output_item.added event was received first
+	if acc.AddEvent(doneEvent) {
+		t.Error("Expected function_call_arguments.done to fail without prior output_item.added")
 	}
 }
 

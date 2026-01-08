@@ -196,12 +196,31 @@ func (acc *ResponseAccumulator) AddEvent(event ResponseStreamEventUnion) bool {
 		}
 		return true
 	case "response.function_call_arguments.done":
-		// assign an index for this item id
-		idx := acc.nextToolIndex
-		acc.nextToolIndex++
+		// Look up metadata stored during output_item.added
+		meta, hasMeta := acc.functionCallMeta[event.ItemID]
+		if !hasMeta {
+			// This should never happen - arguments.done without output_item.added is an error
+			return false
+		}
+
+		// Use metadata from output_item.added
+		idx := meta.Index
+		callID := meta.CallID
+		name := meta.Name
+
+		// Override name from event if provided (OpenAI may send it)
+		if event.Name != "" {
+			name = event.Name
+		}
+
 		acc.toolCallIndices[event.ItemID] = idx
 		acc.justFinishedType = "function_call_args_done"
-		acc.justFinishedTool = FinishedResponseToolCall{CallID: event.ItemID, Index: idx, Name: event.Name, Arguments: event.Arguments}
+		acc.justFinishedTool = FinishedResponseToolCall{
+			CallID:    callID,
+			Index:     idx,
+			Name:      name,
+			Arguments: event.Arguments,
+		}
 		return true
 	case "response.reasoning_text.done":
 		acc.justFinishedType = "reasoning_done"
