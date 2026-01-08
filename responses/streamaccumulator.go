@@ -119,27 +119,29 @@ func (acc *ResponseAccumulator) AddEvent(event ResponseStreamEventUnion) bool {
 		// In streaming, the item should already be on event.Response.Output
 		if len(event.Response.Output) > 0 {
 			acc.Output = append(acc.Output, event.Response.Output...)
-			// Handle function_call items - track metadata for delta events
-			if event.Item.Type == "function_call" {
-				idx := acc.nextToolIndex
-				acc.nextToolIndex++
-				acc.toolCallIndices[event.Item.ID] = idx
+		}
 
-				meta := FunctionCallMeta{
-					CallID:      event.Item.CallID,
-					Name:        event.Item.Name,
-					Index:       idx,
-					OutputIndex: event.OutputIndex,
-				}
-				acc.functionCallMeta[event.Item.ID] = meta
+		// Handle function_call items - track metadata for delta events
+		// Process from event.Item even if Response.Output is empty (OpenAI may not populate it)
+		if event.Item.Type == "function_call" {
+			idx := acc.nextToolIndex
+			acc.nextToolIndex++
+			acc.toolCallIndices[event.Item.ID] = idx
 
-				acc.justAddedType = "function_call_added"
-				acc.justAddedFunctionCall = AddedFunctionCall{
-					CallID:      event.Item.CallID,
-					Index:       idx,
-					Name:        event.Item.Name,
-					OutputIndex: event.OutputIndex,
-				}
+			meta := FunctionCallMeta{
+				CallID:      event.Item.CallID,
+				Name:        event.Item.Name,
+				Index:       idx,
+				OutputIndex: event.OutputIndex,
+			}
+			acc.functionCallMeta[event.Item.ID] = meta
+
+			acc.justAddedType = "function_call_added"
+			acc.justAddedFunctionCall = AddedFunctionCall{
+				CallID:      event.Item.CallID,
+				Index:       idx,
+				Name:        event.Item.Name,
+				OutputIndex: event.OutputIndex,
 			}
 		}
 		return true
