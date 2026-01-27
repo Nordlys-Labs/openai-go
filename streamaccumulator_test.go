@@ -46,7 +46,10 @@ func TestStreamingAccumulatorWithToolCalls(t *testing.T) {
 		option.WithBaseURL(baseURL),
 		option.WithAPIKey("My API Key"),
 		option.WithMiddleware(func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
-			res, _ := next(req)
+			res, err := next(req)
+			if err != nil {
+				return nil, err
+			}
 			res.Body = io.NopCloser(strings.NewReader(mockResponseBody))
 			return res, nil
 		}),
