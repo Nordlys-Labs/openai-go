@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Nordlys-Labs/openai-go"
+	"github.com/Nordlys-Labs/openai-go/v3"
 	"github.com/Nordlys-Labs/openai-go/v3/internal/testutil"
 	"github.com/Nordlys-Labs/openai-go/v3/option"
 )

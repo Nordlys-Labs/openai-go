@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/Nordlys-Labs/openai-go"
+	"github.com/Nordlys-Labs/openai-go/v3"
 	"github.com/Nordlys-Labs/openai-go/v3/internal/apijson"
 	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
 )
