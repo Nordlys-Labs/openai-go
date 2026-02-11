@@ -1,5 +1,78 @@
 # Changelog
 
+## 3.21.0 (2026-02-10)
+
+Full Changelog: [v3.20.0...v3.21.0](https://github.com/openai/openai-go/compare/v3.20.0...v3.21.0)
+
+### Features
+
+* **api:** support for images in batch api ([e23aeb1](https://github.com/openai/openai-go/commit/e23aeb1b13bfd089cc73d3097c9635b687446f82))
+
+## 3.20.0 (2026-02-10)
+
+Full Changelog: [v3.19.0...v3.20.0](https://github.com/openai/openai-go/compare/v3.19.0...v3.20.0)
+
+### Features
+
+* **api:** skills and hosted shell ([9e191de](https://github.com/openai/openai-go/commit/9e191de75f67a6a693c8b25ac9ab1b9288673993))
+
+## 3.19.0 (2026-02-09)
+
+Full Changelog: [v3.18.0...v3.19.0](https://github.com/openai/openai-go/compare/v3.18.0...v3.19.0)
+
+### Features
+
+* **api:** responses context_management ([199f230](https://github.com/openai/openai-go/commit/199f23025ab098f2ac0ac9a99dee37235613c287))
+
+## 3.18.0 (2026-02-05)
+
+Full Changelog: [v3.17.0...v3.18.0](https://github.com/openai/openai-go/compare/v3.17.0...v3.18.0)
+
+### Features
+
+* **api:** add shell_call_output status field ([67a75d7](https://github.com/openai/openai-go/commit/67a75d755e815f6d6fdf4ac48314472a94c8613f))
+* **api:** image generation actions for responses; ResponseFunctionCallArgumentsDoneEvent.name ([2c57016](https://github.com/openai/openai-go/commit/2c57016b7c7f45072c59f193e567a55ecbda21fd))
+
+
+### Bug Fixes
+
+* **client:** undo change to web search Find action ([e340256](https://github.com/openai/openai-go/commit/e340256509214ee386de32b993f5ec4ebba43d38))
+* **client:** update type for `find_in_page` action ([4b5d499](https://github.com/openai/openai-go/commit/4b5d4993e82ada68276bb5560bb2cd8b457aa3da))
+
+
+### Chores
+
+* **client:** improve example values ([c86a65c](https://github.com/openai/openai-go/commit/c86a65cefd55eb18568f4b7d2660c82dc90af4ad))
+
+
+### Documentation
+
+* split `api.md` by standalone resources ([aeed37b](https://github.com/openai/openai-go/commit/aeed37b814d37ad3d59111b7665d48bf220cbf9e))
+
+## 3.17.0 (2026-01-27)
+
+Full Changelog: [v3.16.0...v3.17.0](https://github.com/openai/openai-go/compare/v3.16.0...v3.17.0)
+
+### Features
+
+* **api:** api update ([a456c60](https://github.com/openai/openai-go/commit/a456c60498b33b7da048cc64bdff76c49a904117))
+* **api:** api updates ([21fd4a9](https://github.com/openai/openai-go/commit/21fd4a9534d5ef531c6a9bc497b90c14b68ebda3))
+* **client:** add a convenient param.SetJSON helper ([1b35ece](https://github.com/openai/openai-go/commit/1b35ece947934982609557e6acacfd3526289de1))
+* **client:** add a StreamError type to access raw events from sse streams ([fd14b30](https://github.com/openai/openai-go/commit/fd14b30e3cc2d14438a100be12627692e8ea045a))
+
+
+### Bug Fixes
+
+* **api:** mark assistants as deprecated ([9a8c9af](https://github.com/openai/openai-go/commit/9a8c9af8cf988069e543487c09a0897806408d67))
+* **client:** retain streaming when user sets request body ([3a7a22e](https://github.com/openai/openai-go/commit/3a7a22ec90c5ff44203321bbff94f9541a80601f))
+* **docs:** add missing pointer prefix to api.md return types ([dd641d9](https://github.com/openai/openai-go/commit/dd641d924ead979b4369b952f99387880879938d))
+
+
+### Chores
+
+* **internal:** codegen related update ([74d3989](https://github.com/openai/openai-go/commit/74d3989139a94407020f7bf43c8351c4dffe412c))
+* **internal:** update `actions/checkout` version ([2db54a5](https://github.com/openai/openai-go/commit/2db54a5d05e3240c415cb91320ede5704331828a))
+
 ## 3.16.0 (2026-01-09)
 
 Full Changelog: [v3.15.0...v3.16.0](https://github.com/openai/openai-go/compare/v3.15.0...v3.16.0)

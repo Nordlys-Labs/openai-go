@@ -11,11 +11,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/option"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
 )
 
-func TestAudioSpeechNewWithOptionalParams(t *testing.T) {
+func TestSkillVersionContentGet(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("abc"))
@@ -26,15 +26,11 @@ func TestAudioSpeechNewWithOptionalParams(t *testing.T) {
 		option.WithBaseURL(baseURL),
 		option.WithAPIKey("My API Key"),
 	)
-	resp, err := client.Audio.Speech.New(context.TODO(), openai.AudioSpeechNewParams{
-		Input:          "input",
-		Model:          openai.SpeechModelTTS1,
-		Voice:          openai.AudioSpeechNewParamsVoiceAsh,
-		Instructions:   openai.String("instructions"),
-		ResponseFormat: openai.AudioSpeechNewParamsResponseFormatMP3,
-		Speed:          openai.Float(0.25),
-		StreamFormat:   openai.AudioSpeechNewParamsStreamFormatSSE,
-	})
+	resp, err := client.Skills.Versions.Content.Get(
+		context.TODO(),
+		"skill_123",
+		"version",
+	)
 	if err != nil {
 		var apierr *openai.Error
 		if errors.As(err, &apierr) {

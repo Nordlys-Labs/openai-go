@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 
 	"github.com/Nordlys-Labs/openai-go"

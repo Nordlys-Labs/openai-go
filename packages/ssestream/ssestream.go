@@ -64,6 +64,17 @@ func isWhitespaceOrEmpty(data []byte) bool {
 	return true
 }
 
+// StreamError represents an error event that occurred during streaming,
+// preserving the original event data for structured access.
+type StreamError struct {
+	Message string
+	Event   Event
+}
+
+func (e *StreamError) Error() string {
+	return e.Message
+}
+
 // A base implementation of a Decoder for text/event-stream.
 type eventStreamDecoder struct {
 	evt Event
@@ -168,14 +179,17 @@ func (s *Stream[T]) readNext() bool {
 			continue
 		}
 
+		ep := gjson.GetBytes(s.decoder.Event().Data, "error")
+		if ep.Exists() {
+			s.err = &StreamError{
+				Message: fmt.Sprintf("received error while streaming: %s", ep.String()),
+				Event:   s.decoder.Event(),
+			}
+			return false
+		}
 		var nxt T
 
 		if s.decoder.Event().Type == "" || !strings.HasPrefix(s.decoder.Event().Type, "thread.") {
-			ep := gjson.GetBytes(s.decoder.Event().Data, "error")
-			if ep.Exists() {
-				s.err = fmt.Errorf("received error while streaming: %s", ep.String())
-				return false
-			}
 			s.err = json.Unmarshal(s.decoder.Event().Data, &nxt)
 			if s.err != nil {
 				return false
@@ -183,11 +197,6 @@ func (s *Stream[T]) readNext() bool {
 			s.cur = nxt
 			return true
 		} else {
-			ep := gjson.GetBytes(s.decoder.Event().Data, "error")
-			if ep.Exists() {
-				s.err = fmt.Errorf("received error while streaming: %s", ep.String())
-				return false
-			}
 			event := s.decoder.Event().Type
 			data := s.decoder.Event().Data
 			s.err = json.Unmarshal([]byte(fmt.Sprintf(`{ "event": %q, "data": %s }`, event, data)), &nxt)

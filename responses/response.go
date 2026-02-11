@@ -82,7 +82,7 @@ func (r *ResponseService) NewStreaming(ctx context.Context, body ResponseNewPara
 		err error
 	)
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithJSONSet("stream", true)}, opts...)
+	opts = append(opts, option.WithJSONSet("stream", true))
 	path := "responses"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &raw, opts...)
 	return ssestream.NewStream[ResponseStreamEventUnion](ssestream.NewDecoder(raw), err)
@@ -107,7 +107,7 @@ func (r *ResponseService) GetStreaming(ctx context.Context, responseID string, q
 		err error
 	)
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithJSONSet("stream", true)}, opts...)
+	opts = append(opts, option.WithJSONSet("stream", true))
 	if responseID == "" {
 		err = errors.New("missing required response_id parameter")
 		return
@@ -309,6 +309,570 @@ func (r ComputerToolParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerToolParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ContainerAuto struct {
+	// Automatically creates a container for this request
+	Type constant.ContainerAuto `json:"type,required"`
+	// An optional list of uploaded files to make available to your code.
+	FileIDs []string `json:"file_ids"`
+	// The memory limit for the container.
+	//
+	// Any of "1g", "4g", "16g", "64g".
+	MemoryLimit ContainerAutoMemoryLimit `json:"memory_limit,nullable"`
+	// Network access policy for the container.
+	NetworkPolicy ContainerAutoNetworkPolicyUnion `json:"network_policy"`
+	// An optional list of skills referenced by id or inline data.
+	Skills []ContainerAutoSkillUnion `json:"skills"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type          respjson.Field
+		FileIDs       respjson.Field
+		MemoryLimit   respjson.Field
+		NetworkPolicy respjson.Field
+		Skills        respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ContainerAuto) RawJSON() string { return r.JSON.raw }
+func (r *ContainerAuto) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ContainerAuto to a ContainerAutoParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ContainerAutoParam.Overrides()
+func (r ContainerAuto) ToParam() ContainerAutoParam {
+	return param.Override[ContainerAutoParam](json.RawMessage(r.RawJSON()))
+}
+
+// The memory limit for the container.
+type ContainerAutoMemoryLimit string
+
+const (
+	ContainerAutoMemoryLimit1g  ContainerAutoMemoryLimit = "1g"
+	ContainerAutoMemoryLimit4g  ContainerAutoMemoryLimit = "4g"
+	ContainerAutoMemoryLimit16g ContainerAutoMemoryLimit = "16g"
+	ContainerAutoMemoryLimit64g ContainerAutoMemoryLimit = "64g"
+)
+
+// ContainerAutoNetworkPolicyUnion contains all possible properties and values from
+// [ContainerNetworkPolicyDisabled], [ContainerNetworkPolicyAllowlist].
+//
+// Use the [ContainerAutoNetworkPolicyUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ContainerAutoNetworkPolicyUnion struct {
+	// Any of "disabled", "allowlist".
+	Type string `json:"type"`
+	// This field is from variant [ContainerNetworkPolicyAllowlist].
+	AllowedDomains []string `json:"allowed_domains"`
+	// This field is from variant [ContainerNetworkPolicyAllowlist].
+	DomainSecrets []ContainerNetworkPolicyDomainSecret `json:"domain_secrets"`
+	JSON          struct {
+		Type           respjson.Field
+		AllowedDomains respjson.Field
+		DomainSecrets  respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// anyContainerAutoNetworkPolicy is implemented by each variant of
+// [ContainerAutoNetworkPolicyUnion] to add type safety for the return type of
+// [ContainerAutoNetworkPolicyUnion.AsAny]
+type anyContainerAutoNetworkPolicy interface {
+	implContainerAutoNetworkPolicyUnion()
+}
+
+func (ContainerNetworkPolicyDisabled) implContainerAutoNetworkPolicyUnion()  {}
+func (ContainerNetworkPolicyAllowlist) implContainerAutoNetworkPolicyUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ContainerAutoNetworkPolicyUnion.AsAny().(type) {
+//	case responses.ContainerNetworkPolicyDisabled:
+//	case responses.ContainerNetworkPolicyAllowlist:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ContainerAutoNetworkPolicyUnion) AsAny() anyContainerAutoNetworkPolicy {
+	switch u.Type {
+	case "disabled":
+		return u.AsDisabled()
+	case "allowlist":
+		return u.AsAllowlist()
+	}
+	return nil
+}
+
+func (u ContainerAutoNetworkPolicyUnion) AsDisabled() (v ContainerNetworkPolicyDisabled) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ContainerAutoNetworkPolicyUnion) AsAllowlist() (v ContainerNetworkPolicyAllowlist) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ContainerAutoNetworkPolicyUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ContainerAutoNetworkPolicyUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ContainerAutoSkillUnion contains all possible properties and values from
+// [SkillReference], [InlineSkill].
+//
+// Use the [ContainerAutoSkillUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ContainerAutoSkillUnion struct {
+	// This field is from variant [SkillReference].
+	SkillID string `json:"skill_id"`
+	// Any of "skill_reference", "inline".
+	Type string `json:"type"`
+	// This field is from variant [SkillReference].
+	Version string `json:"version"`
+	// This field is from variant [InlineSkill].
+	Description string `json:"description"`
+	// This field is from variant [InlineSkill].
+	Name string `json:"name"`
+	// This field is from variant [InlineSkill].
+	Source InlineSkillSource `json:"source"`
+	JSON   struct {
+		SkillID     respjson.Field
+		Type        respjson.Field
+		Version     respjson.Field
+		Description respjson.Field
+		Name        respjson.Field
+		Source      respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// anyContainerAutoSkill is implemented by each variant of
+// [ContainerAutoSkillUnion] to add type safety for the return type of
+// [ContainerAutoSkillUnion.AsAny]
+type anyContainerAutoSkill interface {
+	implContainerAutoSkillUnion()
+}
+
+func (SkillReference) implContainerAutoSkillUnion() {}
+func (InlineSkill) implContainerAutoSkillUnion()    {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ContainerAutoSkillUnion.AsAny().(type) {
+//	case responses.SkillReference:
+//	case responses.InlineSkill:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ContainerAutoSkillUnion) AsAny() anyContainerAutoSkill {
+	switch u.Type {
+	case "skill_reference":
+		return u.AsSkillReference()
+	case "inline":
+		return u.AsInline()
+	}
+	return nil
+}
+
+func (u ContainerAutoSkillUnion) AsSkillReference() (v SkillReference) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ContainerAutoSkillUnion) AsInline() (v InlineSkill) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ContainerAutoSkillUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ContainerAutoSkillUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The property Type is required.
+type ContainerAutoParam struct {
+	// The memory limit for the container.
+	//
+	// Any of "1g", "4g", "16g", "64g".
+	MemoryLimit ContainerAutoMemoryLimit `json:"memory_limit,omitzero"`
+	// An optional list of uploaded files to make available to your code.
+	FileIDs []string `json:"file_ids,omitzero"`
+	// Network access policy for the container.
+	NetworkPolicy ContainerAutoNetworkPolicyUnionParam `json:"network_policy,omitzero"`
+	// An optional list of skills referenced by id or inline data.
+	Skills []ContainerAutoSkillUnionParam `json:"skills,omitzero"`
+	// Automatically creates a container for this request
+	//
+	// This field can be elided, and will marshal its zero value as "container_auto".
+	Type constant.ContainerAuto `json:"type,required"`
+	paramObj
+}
+
+func (r ContainerAutoParam) MarshalJSON() (data []byte, err error) {
+	type shadow ContainerAutoParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ContainerAutoParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ContainerAutoNetworkPolicyUnionParam struct {
+	OfDisabled  *ContainerNetworkPolicyDisabledParam  `json:",omitzero,inline"`
+	OfAllowlist *ContainerNetworkPolicyAllowlistParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ContainerAutoNetworkPolicyUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfDisabled, u.OfAllowlist)
+}
+func (u *ContainerAutoNetworkPolicyUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ContainerAutoNetworkPolicyUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfDisabled) {
+		return u.OfDisabled
+	} else if !param.IsOmitted(u.OfAllowlist) {
+		return u.OfAllowlist
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoNetworkPolicyUnionParam) GetAllowedDomains() []string {
+	if vt := u.OfAllowlist; vt != nil {
+		return vt.AllowedDomains
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoNetworkPolicyUnionParam) GetDomainSecrets() []ContainerNetworkPolicyDomainSecretParam {
+	if vt := u.OfAllowlist; vt != nil {
+		return vt.DomainSecrets
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoNetworkPolicyUnionParam) GetType() *string {
+	if vt := u.OfDisabled; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfAllowlist; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ContainerAutoNetworkPolicyUnionParam](
+		"type",
+		apijson.Discriminator[ContainerNetworkPolicyDisabledParam]("disabled"),
+		apijson.Discriminator[ContainerNetworkPolicyAllowlistParam]("allowlist"),
+	)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ContainerAutoSkillUnionParam struct {
+	OfSkillReference *SkillReferenceParam `json:",omitzero,inline"`
+	OfInline         *InlineSkillParam    `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ContainerAutoSkillUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfSkillReference, u.OfInline)
+}
+func (u *ContainerAutoSkillUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ContainerAutoSkillUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfSkillReference) {
+		return u.OfSkillReference
+	} else if !param.IsOmitted(u.OfInline) {
+		return u.OfInline
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoSkillUnionParam) GetSkillID() *string {
+	if vt := u.OfSkillReference; vt != nil {
+		return &vt.SkillID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoSkillUnionParam) GetVersion() *string {
+	if vt := u.OfSkillReference; vt != nil && vt.Version.Valid() {
+		return &vt.Version.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoSkillUnionParam) GetDescription() *string {
+	if vt := u.OfInline; vt != nil {
+		return &vt.Description
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoSkillUnionParam) GetName() *string {
+	if vt := u.OfInline; vt != nil {
+		return &vt.Name
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoSkillUnionParam) GetSource() *InlineSkillSourceParam {
+	if vt := u.OfInline; vt != nil {
+		return &vt.Source
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ContainerAutoSkillUnionParam) GetType() *string {
+	if vt := u.OfSkillReference; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfInline; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ContainerAutoSkillUnionParam](
+		"type",
+		apijson.Discriminator[SkillReferenceParam]("skill_reference"),
+		apijson.Discriminator[InlineSkillParam]("inline"),
+	)
+}
+
+type ContainerNetworkPolicyAllowlist struct {
+	// A list of allowed domains when type is `allowlist`.
+	AllowedDomains []string `json:"allowed_domains,required"`
+	// Allow outbound network access only to specified domains. Always `allowlist`.
+	Type constant.Allowlist `json:"type,required"`
+	// Optional domain-scoped secrets for allowlisted domains.
+	DomainSecrets []ContainerNetworkPolicyDomainSecret `json:"domain_secrets"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		AllowedDomains respjson.Field
+		Type           respjson.Field
+		DomainSecrets  respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ContainerNetworkPolicyAllowlist) RawJSON() string { return r.JSON.raw }
+func (r *ContainerNetworkPolicyAllowlist) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ContainerNetworkPolicyAllowlist to a
+// ContainerNetworkPolicyAllowlistParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ContainerNetworkPolicyAllowlistParam.Overrides()
+func (r ContainerNetworkPolicyAllowlist) ToParam() ContainerNetworkPolicyAllowlistParam {
+	return param.Override[ContainerNetworkPolicyAllowlistParam](json.RawMessage(r.RawJSON()))
+}
+
+// The properties AllowedDomains, Type are required.
+type ContainerNetworkPolicyAllowlistParam struct {
+	// A list of allowed domains when type is `allowlist`.
+	AllowedDomains []string `json:"allowed_domains,omitzero,required"`
+	// Optional domain-scoped secrets for allowlisted domains.
+	DomainSecrets []ContainerNetworkPolicyDomainSecretParam `json:"domain_secrets,omitzero"`
+	// Allow outbound network access only to specified domains. Always `allowlist`.
+	//
+	// This field can be elided, and will marshal its zero value as "allowlist".
+	Type constant.Allowlist `json:"type,required"`
+	paramObj
+}
+
+func (r ContainerNetworkPolicyAllowlistParam) MarshalJSON() (data []byte, err error) {
+	type shadow ContainerNetworkPolicyAllowlistParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ContainerNetworkPolicyAllowlistParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ContainerNetworkPolicyDisabled struct {
+	// Disable outbound network access. Always `disabled`.
+	Type constant.Disabled `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ContainerNetworkPolicyDisabled) RawJSON() string { return r.JSON.raw }
+func (r *ContainerNetworkPolicyDisabled) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ContainerNetworkPolicyDisabled to a
+// ContainerNetworkPolicyDisabledParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ContainerNetworkPolicyDisabledParam.Overrides()
+func (r ContainerNetworkPolicyDisabled) ToParam() ContainerNetworkPolicyDisabledParam {
+	return param.Override[ContainerNetworkPolicyDisabledParam](json.RawMessage(r.RawJSON()))
+}
+
+func NewContainerNetworkPolicyDisabledParam() ContainerNetworkPolicyDisabledParam {
+	return ContainerNetworkPolicyDisabledParam{
+		Type: "disabled",
+	}
+}
+
+// This struct has a constant value, construct it with
+// [NewContainerNetworkPolicyDisabledParam].
+type ContainerNetworkPolicyDisabledParam struct {
+	// Disable outbound network access. Always `disabled`.
+	Type constant.Disabled `json:"type,required"`
+	paramObj
+}
+
+func (r ContainerNetworkPolicyDisabledParam) MarshalJSON() (data []byte, err error) {
+	type shadow ContainerNetworkPolicyDisabledParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ContainerNetworkPolicyDisabledParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ContainerNetworkPolicyDomainSecret struct {
+	// The domain associated with the secret.
+	Domain string `json:"domain,required"`
+	// The name of the secret to inject for the domain.
+	Name string `json:"name,required"`
+	// The secret value to inject for the domain.
+	Value string `json:"value,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Domain      respjson.Field
+		Name        respjson.Field
+		Value       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ContainerNetworkPolicyDomainSecret) RawJSON() string { return r.JSON.raw }
+func (r *ContainerNetworkPolicyDomainSecret) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ContainerNetworkPolicyDomainSecret to a
+// ContainerNetworkPolicyDomainSecretParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ContainerNetworkPolicyDomainSecretParam.Overrides()
+func (r ContainerNetworkPolicyDomainSecret) ToParam() ContainerNetworkPolicyDomainSecretParam {
+	return param.Override[ContainerNetworkPolicyDomainSecretParam](json.RawMessage(r.RawJSON()))
+}
+
+// The properties Domain, Name, Value are required.
+type ContainerNetworkPolicyDomainSecretParam struct {
+	// The domain associated with the secret.
+	Domain string `json:"domain,required"`
+	// The name of the secret to inject for the domain.
+	Name string `json:"name,required"`
+	// The secret value to inject for the domain.
+	Value string `json:"value,required"`
+	paramObj
+}
+
+func (r ContainerNetworkPolicyDomainSecretParam) MarshalJSON() (data []byte, err error) {
+	type shadow ContainerNetworkPolicyDomainSecretParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ContainerNetworkPolicyDomainSecretParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ContainerReference struct {
+	// The ID of the referenced container.
+	ContainerID string `json:"container_id,required"`
+	// References a container created with the /v1/containers endpoint
+	Type constant.ContainerReference `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContainerID respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ContainerReference) RawJSON() string { return r.JSON.raw }
+func (r *ContainerReference) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ContainerReference to a ContainerReferenceParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ContainerReferenceParam.Overrides()
+func (r ContainerReference) ToParam() ContainerReferenceParam {
+	return param.Override[ContainerReferenceParam](json.RawMessage(r.RawJSON()))
+}
+
+// The properties ContainerID, Type are required.
+type ContainerReferenceParam struct {
+	// The ID of the referenced container.
+	ContainerID string `json:"container_id,required"`
+	// References a container created with the /v1/containers endpoint
+	//
+	// This field can be elided, and will marshal its zero value as
+	// "container_reference".
+	Type constant.ContainerReference `json:"type,required"`
+	paramObj
+}
+
+func (r ContainerReferenceParam) MarshalJSON() (data []byte, err error) {
+	type shadow ContainerReferenceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ContainerReferenceParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -802,10 +1366,12 @@ func (r *FileSearchToolRankingOptionsHybridSearchParam) UnmarshalJSON(data []byt
 // A tool that allows the model to execute shell commands.
 type FunctionShellTool struct {
 	// The type of the shell tool. Always `shell`.
-	Type constant.Shell `json:"type,required"`
+	Type        constant.Shell                    `json:"type,required"`
+	Environment FunctionShellToolEnvironmentUnion `json:"environment,nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type        respjson.Field
+		Environment respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
 	} `json:"-"`
@@ -826,17 +1392,126 @@ func (r FunctionShellTool) ToParam() FunctionShellToolParam {
 	return param.Override[FunctionShellToolParam](json.RawMessage(r.RawJSON()))
 }
 
-func NewFunctionShellToolParam() FunctionShellToolParam {
-	return FunctionShellToolParam{
-		Type: "shell",
+// FunctionShellToolEnvironmentUnion contains all possible properties and values
+// from [ContainerAuto], [LocalEnvironment], [ContainerReference].
+//
+// Use the [FunctionShellToolEnvironmentUnion.AsAny] method to switch on the
+// variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type FunctionShellToolEnvironmentUnion struct {
+	// Any of "container_auto", "local", "container_reference".
+	Type string `json:"type"`
+	// This field is from variant [ContainerAuto].
+	FileIDs []string `json:"file_ids"`
+	// This field is from variant [ContainerAuto].
+	MemoryLimit ContainerAutoMemoryLimit `json:"memory_limit"`
+	// This field is from variant [ContainerAuto].
+	NetworkPolicy ContainerAutoNetworkPolicyUnion `json:"network_policy"`
+	// This field is a union of [[]ContainerAutoSkillUnion], [[]LocalSkill]
+	Skills FunctionShellToolEnvironmentUnionSkills `json:"skills"`
+	// This field is from variant [ContainerReference].
+	ContainerID string `json:"container_id"`
+	JSON        struct {
+		Type          respjson.Field
+		FileIDs       respjson.Field
+		MemoryLimit   respjson.Field
+		NetworkPolicy respjson.Field
+		Skills        respjson.Field
+		ContainerID   respjson.Field
+		raw           string
+	} `json:"-"`
+}
+
+// anyFunctionShellToolEnvironment is implemented by each variant of
+// [FunctionShellToolEnvironmentUnion] to add type safety for the return type of
+// [FunctionShellToolEnvironmentUnion.AsAny]
+type anyFunctionShellToolEnvironment interface {
+	implFunctionShellToolEnvironmentUnion()
+}
+
+func (ContainerAuto) implFunctionShellToolEnvironmentUnion()      {}
+func (LocalEnvironment) implFunctionShellToolEnvironmentUnion()   {}
+func (ContainerReference) implFunctionShellToolEnvironmentUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := FunctionShellToolEnvironmentUnion.AsAny().(type) {
+//	case responses.ContainerAuto:
+//	case responses.LocalEnvironment:
+//	case responses.ContainerReference:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u FunctionShellToolEnvironmentUnion) AsAny() anyFunctionShellToolEnvironment {
+	switch u.Type {
+	case "container_auto":
+		return u.AsContainerAuto()
+	case "local":
+		return u.AsLocal()
+	case "container_reference":
+		return u.AsContainerReference()
 	}
+	return nil
+}
+
+func (u FunctionShellToolEnvironmentUnion) AsContainerAuto() (v ContainerAuto) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u FunctionShellToolEnvironmentUnion) AsLocal() (v LocalEnvironment) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u FunctionShellToolEnvironmentUnion) AsContainerReference() (v ContainerReference) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u FunctionShellToolEnvironmentUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *FunctionShellToolEnvironmentUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// FunctionShellToolEnvironmentUnionSkills is an implicit subunion of
+// [FunctionShellToolEnvironmentUnion]. FunctionShellToolEnvironmentUnionSkills
+// provides convenient access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [FunctionShellToolEnvironmentUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfContainerAutoSkills OfLocalSkillArray]
+type FunctionShellToolEnvironmentUnionSkills struct {
+	// This field will be present if the value is a [[]ContainerAutoSkillUnion] instead
+	// of an object.
+	OfContainerAutoSkills []ContainerAutoSkillUnion `json:",inline"`
+	// This field will be present if the value is a [[]LocalSkill] instead of an
+	// object.
+	OfLocalSkillArray []LocalSkill `json:",inline"`
+	JSON              struct {
+		OfContainerAutoSkills respjson.Field
+		OfLocalSkillArray     respjson.Field
+		raw                   string
+	} `json:"-"`
+}
+
+func (r *FunctionShellToolEnvironmentUnionSkills) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
 }
 
 // A tool that allows the model to execute shell commands.
 //
-// This struct has a constant value, construct it with [NewFunctionShellToolParam].
+// The property Type is required.
 type FunctionShellToolParam struct {
+	Environment FunctionShellToolEnvironmentUnionParam `json:"environment,omitzero"`
 	// The type of the shell tool. Always `shell`.
+	//
+	// This field can be elided, and will marshal its zero value as "shell".
 	Type constant.Shell `json:"type,required"`
 	paramObj
 }
@@ -847,6 +1522,113 @@ func (r FunctionShellToolParam) MarshalJSON() (data []byte, err error) {
 }
 func (r *FunctionShellToolParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type FunctionShellToolEnvironmentUnionParam struct {
+	OfContainerAuto      *ContainerAutoParam      `json:",omitzero,inline"`
+	OfLocal              *LocalEnvironmentParam   `json:",omitzero,inline"`
+	OfContainerReference *ContainerReferenceParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u FunctionShellToolEnvironmentUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfContainerAuto, u.OfLocal, u.OfContainerReference)
+}
+func (u *FunctionShellToolEnvironmentUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *FunctionShellToolEnvironmentUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfContainerAuto) {
+		return u.OfContainerAuto
+	} else if !param.IsOmitted(u.OfLocal) {
+		return u.OfLocal
+	} else if !param.IsOmitted(u.OfContainerReference) {
+		return u.OfContainerReference
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u FunctionShellToolEnvironmentUnionParam) GetFileIDs() []string {
+	if vt := u.OfContainerAuto; vt != nil {
+		return vt.FileIDs
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u FunctionShellToolEnvironmentUnionParam) GetMemoryLimit() *string {
+	if vt := u.OfContainerAuto; vt != nil {
+		return (*string)(&vt.MemoryLimit)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u FunctionShellToolEnvironmentUnionParam) GetNetworkPolicy() *ContainerAutoNetworkPolicyUnionParam {
+	if vt := u.OfContainerAuto; vt != nil {
+		return &vt.NetworkPolicy
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u FunctionShellToolEnvironmentUnionParam) GetContainerID() *string {
+	if vt := u.OfContainerReference; vt != nil {
+		return &vt.ContainerID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u FunctionShellToolEnvironmentUnionParam) GetType() *string {
+	if vt := u.OfContainerAuto; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfLocal; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfContainerReference; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u FunctionShellToolEnvironmentUnionParam) GetSkills() (res functionShellToolEnvironmentUnionParamSkills) {
+	if vt := u.OfContainerAuto; vt != nil {
+		res.any = &vt.Skills
+	} else if vt := u.OfLocal; vt != nil {
+		res.any = &vt.Skills
+	}
+	return
+}
+
+// Can have the runtime types [_[]ContainerAutoSkillUnionParam],
+// [_[]LocalSkillParam]
+type functionShellToolEnvironmentUnionParamSkills struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *[]responses.ContainerAutoSkillUnionParam:
+//	case *[]responses.LocalSkillParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u functionShellToolEnvironmentUnionParamSkills) AsAny() any { return u.any }
+
+func init() {
+	apijson.RegisterUnion[FunctionShellToolEnvironmentUnionParam](
+		"type",
+		apijson.Discriminator[ContainerAutoParam]("container_auto"),
+		apijson.Discriminator[LocalEnvironmentParam]("local"),
+		apijson.Discriminator[ContainerReferenceParam]("container_reference"),
+	)
 }
 
 // Defines a function in your own code the model can choose to call. Learn more
@@ -918,6 +1700,221 @@ func (r FunctionToolParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *FunctionToolParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type InlineSkill struct {
+	// The description of the skill.
+	Description string `json:"description,required"`
+	// The name of the skill.
+	Name string `json:"name,required"`
+	// Inline skill payload
+	Source InlineSkillSource `json:"source,required"`
+	// Defines an inline skill for this request.
+	Type constant.Inline `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Description respjson.Field
+		Name        respjson.Field
+		Source      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r InlineSkill) RawJSON() string { return r.JSON.raw }
+func (r *InlineSkill) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this InlineSkill to a InlineSkillParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// InlineSkillParam.Overrides()
+func (r InlineSkill) ToParam() InlineSkillParam {
+	return param.Override[InlineSkillParam](json.RawMessage(r.RawJSON()))
+}
+
+// The properties Description, Name, Source, Type are required.
+type InlineSkillParam struct {
+	// The description of the skill.
+	Description string `json:"description,required"`
+	// The name of the skill.
+	Name string `json:"name,required"`
+	// Inline skill payload
+	Source InlineSkillSourceParam `json:"source,omitzero,required"`
+	// Defines an inline skill for this request.
+	//
+	// This field can be elided, and will marshal its zero value as "inline".
+	Type constant.Inline `json:"type,required"`
+	paramObj
+}
+
+func (r InlineSkillParam) MarshalJSON() (data []byte, err error) {
+	type shadow InlineSkillParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *InlineSkillParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Inline skill payload
+type InlineSkillSource struct {
+	// Base64-encoded skill zip bundle.
+	Data string `json:"data,required"`
+	// The media type of the inline skill payload. Must be `application/zip`.
+	MediaType constant.ApplicationZip `json:"media_type,required"`
+	// The type of the inline skill source. Must be `base64`.
+	Type constant.Base64 `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Data        respjson.Field
+		MediaType   respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r InlineSkillSource) RawJSON() string { return r.JSON.raw }
+func (r *InlineSkillSource) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this InlineSkillSource to a InlineSkillSourceParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// InlineSkillSourceParam.Overrides()
+func (r InlineSkillSource) ToParam() InlineSkillSourceParam {
+	return param.Override[InlineSkillSourceParam](json.RawMessage(r.RawJSON()))
+}
+
+// Inline skill payload
+//
+// The properties Data, MediaType, Type are required.
+type InlineSkillSourceParam struct {
+	// Base64-encoded skill zip bundle.
+	Data string `json:"data,required"`
+	// The media type of the inline skill payload. Must be `application/zip`.
+	//
+	// This field can be elided, and will marshal its zero value as "application/zip".
+	MediaType constant.ApplicationZip `json:"media_type,required"`
+	// The type of the inline skill source. Must be `base64`.
+	//
+	// This field can be elided, and will marshal its zero value as "base64".
+	Type constant.Base64 `json:"type,required"`
+	paramObj
+}
+
+func (r InlineSkillSourceParam) MarshalJSON() (data []byte, err error) {
+	type shadow InlineSkillSourceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *InlineSkillSourceParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type LocalEnvironment struct {
+	// Use a local computer environment.
+	Type constant.Local `json:"type,required"`
+	// An optional list of skills.
+	Skills []LocalSkill `json:"skills"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		Skills      respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r LocalEnvironment) RawJSON() string { return r.JSON.raw }
+func (r *LocalEnvironment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this LocalEnvironment to a LocalEnvironmentParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// LocalEnvironmentParam.Overrides()
+func (r LocalEnvironment) ToParam() LocalEnvironmentParam {
+	return param.Override[LocalEnvironmentParam](json.RawMessage(r.RawJSON()))
+}
+
+// The property Type is required.
+type LocalEnvironmentParam struct {
+	// An optional list of skills.
+	Skills []LocalSkillParam `json:"skills,omitzero"`
+	// Use a local computer environment.
+	//
+	// This field can be elided, and will marshal its zero value as "local".
+	Type constant.Local `json:"type,required"`
+	paramObj
+}
+
+func (r LocalEnvironmentParam) MarshalJSON() (data []byte, err error) {
+	type shadow LocalEnvironmentParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *LocalEnvironmentParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type LocalSkill struct {
+	// The description of the skill.
+	Description string `json:"description,required"`
+	// The name of the skill.
+	Name string `json:"name,required"`
+	// The path to the directory containing the skill.
+	Path string `json:"path,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Description respjson.Field
+		Name        respjson.Field
+		Path        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r LocalSkill) RawJSON() string { return r.JSON.raw }
+func (r *LocalSkill) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this LocalSkill to a LocalSkillParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// LocalSkillParam.Overrides()
+func (r LocalSkill) ToParam() LocalSkillParam {
+	return param.Override[LocalSkillParam](json.RawMessage(r.RawJSON()))
+}
+
+// The properties Description, Name, Path are required.
+type LocalSkillParam struct {
+	// The description of the skill.
+	Description string `json:"description,required"`
+	// The name of the skill.
+	Name string `json:"name,required"`
+	// The path to the directory containing the skill.
+	Path string `json:"path,required"`
+	paramObj
+}
+
+func (r LocalSkillParam) MarshalJSON() (data []byte, err error) {
+	type shadow LocalSkillParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *LocalSkillParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -3360,6 +4357,26 @@ func (r *ResponseComputerToolCallOutputScreenshotParam) UnmarshalJSON(data []byt
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Represents a container created with /v1/containers.
+type ResponseContainerReference struct {
+	ContainerID string `json:"container_id,required"`
+	// The environment type. Always `container_reference`.
+	Type constant.ContainerReference `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContainerID respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseContainerReference) RawJSON() string { return r.JSON.raw }
+func (r *ResponseContainerReference) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Emitted when a new content part is added.
 type ResponseContentPartAddedEvent struct {
 	// The index of the content part that was added.
@@ -5352,6 +6369,8 @@ type ResponseFunctionShellToolCall struct {
 	Action ResponseFunctionShellToolCallAction `json:"action,required"`
 	// The unique ID of the shell tool call generated by the model.
 	CallID string `json:"call_id,required"`
+	// Represents the use of a local environment to perform shell actions.
+	Environment ResponseFunctionShellToolCallEnvironmentUnion `json:"environment,required"`
 	// The status of the shell call. One of `in_progress`, `completed`, or
 	// `incomplete`.
 	//
@@ -5366,6 +6385,7 @@ type ResponseFunctionShellToolCall struct {
 		ID          respjson.Field
 		Action      respjson.Field
 		CallID      respjson.Field
+		Environment respjson.Field
 		Status      respjson.Field
 		Type        respjson.Field
 		CreatedBy   respjson.Field
@@ -5405,6 +6425,70 @@ func (r *ResponseFunctionShellToolCallAction) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// ResponseFunctionShellToolCallEnvironmentUnion contains all possible properties
+// and values from [ResponseLocalEnvironment], [ResponseContainerReference].
+//
+// Use the [ResponseFunctionShellToolCallEnvironmentUnion.AsAny] method to switch
+// on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseFunctionShellToolCallEnvironmentUnion struct {
+	// Any of "local", "container_reference".
+	Type string `json:"type"`
+	// This field is from variant [ResponseContainerReference].
+	ContainerID string `json:"container_id"`
+	JSON        struct {
+		Type        respjson.Field
+		ContainerID respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// anyResponseFunctionShellToolCallEnvironment is implemented by each variant of
+// [ResponseFunctionShellToolCallEnvironmentUnion] to add type safety for the
+// return type of [ResponseFunctionShellToolCallEnvironmentUnion.AsAny]
+type anyResponseFunctionShellToolCallEnvironment interface {
+	implResponseFunctionShellToolCallEnvironmentUnion()
+}
+
+func (ResponseLocalEnvironment) implResponseFunctionShellToolCallEnvironmentUnion()   {}
+func (ResponseContainerReference) implResponseFunctionShellToolCallEnvironmentUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseFunctionShellToolCallEnvironmentUnion.AsAny().(type) {
+//	case responses.ResponseLocalEnvironment:
+//	case responses.ResponseContainerReference:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseFunctionShellToolCallEnvironmentUnion) AsAny() anyResponseFunctionShellToolCallEnvironment {
+	switch u.Type {
+	case "local":
+		return u.AsLocal()
+	case "container_reference":
+		return u.AsContainerReference()
+	}
+	return nil
+}
+
+func (u ResponseFunctionShellToolCallEnvironmentUnion) AsLocal() (v ResponseLocalEnvironment) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseFunctionShellToolCallEnvironmentUnion) AsContainerReference() (v ResponseContainerReference) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseFunctionShellToolCallEnvironmentUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseFunctionShellToolCallEnvironmentUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // The status of the shell call. One of `in_progress`, `completed`, or
 // `incomplete`.
 type ResponseFunctionShellToolCallStatus string
@@ -5427,6 +6511,11 @@ type ResponseFunctionShellToolCallOutput struct {
 	MaxOutputLength int64 `json:"max_output_length,required"`
 	// An array of shell call output contents
 	Output []ResponseFunctionShellToolCallOutputOutput `json:"output,required"`
+	// The status of the shell call output. One of `in_progress`, `completed`, or
+	// `incomplete`.
+	//
+	// Any of "in_progress", "completed", "incomplete".
+	Status ResponseFunctionShellToolCallOutputStatus `json:"status,required"`
 	// The type of the shell call output. Always `shell_call_output`.
 	Type constant.ShellCallOutput `json:"type,required"`
 	// The identifier of the actor that created the item.
@@ -5437,6 +6526,7 @@ type ResponseFunctionShellToolCallOutput struct {
 		CallID          respjson.Field
 		MaxOutputLength respjson.Field
 		Output          respjson.Field
+		Status          respjson.Field
 		Type            respjson.Field
 		CreatedBy       respjson.Field
 		ExtraFields     map[string]respjson.Field
@@ -5588,6 +6678,16 @@ func (r ResponseFunctionShellToolCallOutputOutputOutcomeExit) RawJSON() string {
 func (r *ResponseFunctionShellToolCallOutputOutputOutcomeExit) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
+
+// The status of the shell call output. One of `in_progress`, `completed`, or
+// `incomplete`.
+type ResponseFunctionShellToolCallOutputStatus string
+
+const (
+	ResponseFunctionShellToolCallOutputStatusInProgress ResponseFunctionShellToolCallOutputStatus = "in_progress"
+	ResponseFunctionShellToolCallOutputStatusCompleted  ResponseFunctionShellToolCallOutputStatus = "completed"
+	ResponseFunctionShellToolCallOutputStatusIncomplete ResponseFunctionShellToolCallOutputStatus = "incomplete"
+)
 
 // A tool call to run a function. See the
 // [function calling guide](https://platform.openai.com/docs/guides/function-calling)
@@ -5891,7 +6991,7 @@ type ResponseFunctionWebSearch struct {
 	// The unique ID of the web search tool call.
 	ID string `json:"id,required"`
 	// An object describing the specific action taken in this web search call. Includes
-	// details on how the model used the web (search, open_page, find).
+	// details on how the model used the web (search, open_page, find_in_page).
 	Action ResponseFunctionWebSearchActionUnion `json:"action,required"`
 	// The status of the web search tool call.
 	//
@@ -5940,7 +7040,7 @@ func (r ResponseFunctionWebSearch) ToParam() ResponseFunctionWebSearchParam {
 type ResponseFunctionWebSearchActionUnion struct {
 	// This field is from variant [ResponseFunctionWebSearchActionSearch].
 	Query string `json:"query"`
-	// Any of "search", "open_page", "find".
+	// Any of "search", "open_page", "find_in_page".
 	Type string `json:"type"`
 	// This field is from variant [ResponseFunctionWebSearchActionSearch].
 	Queries []string `json:"queries"`
@@ -5986,7 +7086,7 @@ func (u ResponseFunctionWebSearchActionUnion) AsAny() anyResponseFunctionWebSear
 		return u.AsSearch()
 	case "open_page":
 		return u.AsOpenPage()
-	case "find":
+	case "find_in_page":
 		return u.AsFind()
 	}
 	return nil
@@ -6067,7 +7167,7 @@ type ResponseFunctionWebSearchActionOpenPage struct {
 	// The action type.
 	Type constant.OpenPage `json:"type,required"`
 	// The URL opened by the model.
-	URL string `json:"url,required" format:"uri"`
+	URL string `json:"url,nullable" format:"uri"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type        respjson.Field
@@ -6083,12 +7183,12 @@ func (r *ResponseFunctionWebSearchActionOpenPage) UnmarshalJSON(data []byte) err
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// Action type "find": Searches for a pattern within a loaded page.
+// Action type "find_in_page": Searches for a pattern within a loaded page.
 type ResponseFunctionWebSearchActionFind struct {
 	// The pattern or text to search for within the page.
 	Pattern string `json:"pattern,required"`
 	// The action type.
-	Type constant.Find `json:"type,required"`
+	Type constant.FindInPage `json:"type,required"`
 	// The URL of the page searched for the pattern.
 	URL string `json:"url,required" format:"uri"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
@@ -6126,7 +7226,7 @@ type ResponseFunctionWebSearchParam struct {
 	// The unique ID of the web search tool call.
 	ID string `json:"id,required"`
 	// An object describing the specific action taken in this web search call. Includes
-	// details on how the model used the web (search, open_page, find).
+	// details on how the model used the web (search, open_page, find_in_page).
 	Action ResponseFunctionWebSearchActionUnionParam `json:"action,omitzero,required"`
 	// The status of the web search tool call.
 	//
@@ -6221,8 +7321,8 @@ func (u ResponseFunctionWebSearchActionUnionParam) GetType() *string {
 
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseFunctionWebSearchActionUnionParam) GetURL() *string {
-	if vt := u.OfOpenPage; vt != nil {
-		return (*string)(&vt.URL)
+	if vt := u.OfOpenPage; vt != nil && vt.URL.Valid() {
+		return &vt.URL.Value
 	} else if vt := u.OfFind; vt != nil {
 		return (*string)(&vt.URL)
 	}
@@ -6234,7 +7334,7 @@ func init() {
 		"type",
 		apijson.Discriminator[ResponseFunctionWebSearchActionSearchParam]("search"),
 		apijson.Discriminator[ResponseFunctionWebSearchActionOpenPageParam]("open_page"),
-		apijson.Discriminator[ResponseFunctionWebSearchActionFindParam]("find"),
+		apijson.Discriminator[ResponseFunctionWebSearchActionFindParam]("find_in_page"),
 	)
 }
 
@@ -6286,10 +7386,10 @@ func (r *ResponseFunctionWebSearchActionSearchSourceParam) UnmarshalJSON(data []
 
 // Action type "open_page" - Opens a specific URL from search results.
 //
-// The properties Type, URL are required.
+// The property Type is required.
 type ResponseFunctionWebSearchActionOpenPageParam struct {
 	// The URL opened by the model.
-	URL string `json:"url,required" format:"uri"`
+	URL param.Opt[string] `json:"url,omitzero" format:"uri"`
 	// The action type.
 	//
 	// This field can be elided, and will marshal its zero value as "open_page".
@@ -6305,7 +7405,7 @@ func (r *ResponseFunctionWebSearchActionOpenPageParam) UnmarshalJSON(data []byte
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// Action type "find": Searches for a pattern within a loaded page.
+// Action type "find_in_page": Searches for a pattern within a loaded page.
 //
 // The properties Pattern, Type, URL are required.
 type ResponseFunctionWebSearchActionFindParam struct {
@@ -6315,8 +7415,8 @@ type ResponseFunctionWebSearchActionFindParam struct {
 	URL string `json:"url,required" format:"uri"`
 	// The action type.
 	//
-	// This field can be elided, and will marshal its zero value as "find".
-	Type constant.Find `json:"type,required"`
+	// This field can be elided, and will marshal its zero value as "find_in_page".
+	Type constant.FindInPage `json:"type,required"`
 	paramObj
 }
 
@@ -7206,6 +8306,8 @@ type ResponseInputItemUnion struct {
 	ContainerID string `json:"container_id"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
 	Outputs []ResponseCodeInterpreterToolCallOutputUnion `json:"outputs"`
+	// This field is from variant [ResponseInputItemShellCall].
+	Environment ResponseInputItemShellCallEnvironmentUnion `json:"environment"`
 	// This field is from variant [ResponseInputItemShellCallOutput].
 	MaxOutputLength int64 `json:"max_output_length"`
 	// This field is from variant [ResponseInputItemApplyPatchCall].
@@ -7242,6 +8344,7 @@ type ResponseInputItemUnion struct {
 		Code                     respjson.Field
 		ContainerID              respjson.Field
 		Outputs                  respjson.Field
+		Environment              respjson.Field
 		MaxOutputLength          respjson.Field
 		Operation                respjson.Field
 		ServerLabel              respjson.Field
@@ -7979,6 +9082,8 @@ type ResponseInputItemShellCall struct {
 	// The unique ID of the shell tool call. Populated when this item is returned via
 	// API.
 	ID string `json:"id,nullable"`
+	// The environment to execute the shell commands in.
+	Environment ResponseInputItemShellCallEnvironmentUnion `json:"environment,nullable"`
 	// The status of the shell call. One of `in_progress`, `completed`, or
 	// `incomplete`.
 	//
@@ -7990,6 +9095,7 @@ type ResponseInputItemShellCall struct {
 		CallID      respjson.Field
 		Type        respjson.Field
 		ID          respjson.Field
+		Environment respjson.Field
 		Status      respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
@@ -8027,6 +9133,73 @@ func (r *ResponseInputItemShellCallAction) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// ResponseInputItemShellCallEnvironmentUnion contains all possible properties and
+// values from [LocalEnvironment], [ContainerReference].
+//
+// Use the [ResponseInputItemShellCallEnvironmentUnion.AsAny] method to switch on
+// the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseInputItemShellCallEnvironmentUnion struct {
+	// Any of "local", "container_reference".
+	Type string `json:"type"`
+	// This field is from variant [LocalEnvironment].
+	Skills []LocalSkill `json:"skills"`
+	// This field is from variant [ContainerReference].
+	ContainerID string `json:"container_id"`
+	JSON        struct {
+		Type        respjson.Field
+		Skills      respjson.Field
+		ContainerID respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// anyResponseInputItemShellCallEnvironment is implemented by each variant of
+// [ResponseInputItemShellCallEnvironmentUnion] to add type safety for the return
+// type of [ResponseInputItemShellCallEnvironmentUnion.AsAny]
+type anyResponseInputItemShellCallEnvironment interface {
+	implResponseInputItemShellCallEnvironmentUnion()
+}
+
+func (LocalEnvironment) implResponseInputItemShellCallEnvironmentUnion()   {}
+func (ContainerReference) implResponseInputItemShellCallEnvironmentUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseInputItemShellCallEnvironmentUnion.AsAny().(type) {
+//	case responses.LocalEnvironment:
+//	case responses.ContainerReference:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseInputItemShellCallEnvironmentUnion) AsAny() anyResponseInputItemShellCallEnvironment {
+	switch u.Type {
+	case "local":
+		return u.AsLocal()
+	case "container_reference":
+		return u.AsContainerReference()
+	}
+	return nil
+}
+
+func (u ResponseInputItemShellCallEnvironmentUnion) AsLocal() (v LocalEnvironment) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseInputItemShellCallEnvironmentUnion) AsContainerReference() (v ContainerReference) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseInputItemShellCallEnvironmentUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseInputItemShellCallEnvironmentUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // The streamed output items emitted by a shell tool call.
 type ResponseInputItemShellCallOutput struct {
 	// The unique ID of the shell tool call generated by the model.
@@ -8042,6 +9215,10 @@ type ResponseInputItemShellCallOutput struct {
 	// The maximum number of UTF-8 characters captured for this shell call's combined
 	// output.
 	MaxOutputLength int64 `json:"max_output_length,nullable"`
+	// The status of the shell call output.
+	//
+	// Any of "in_progress", "completed", "incomplete".
+	Status string `json:"status,nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CallID          respjson.Field
@@ -8049,6 +9226,7 @@ type ResponseInputItemShellCallOutput struct {
 		Type            respjson.Field
 		ID              respjson.Field
 		MaxOutputLength respjson.Field
+		Status          respjson.Field
 		ExtraFields     map[string]respjson.Field
 		raw             string
 	} `json:"-"`
@@ -8847,6 +10025,14 @@ func (u ResponseInputItemUnionParam) GetOutputs() []ResponseCodeInterpreterToolC
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetEnvironment() *ResponseInputItemShellCallEnvironmentUnionParam {
+	if vt := u.OfShellCall; vt != nil {
+		return &vt.Environment
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ResponseInputItemUnionParam) GetMaxOutputLength() *int64 {
 	if vt := u.OfShellCallOutput; vt != nil && vt.MaxOutputLength.Valid() {
 		return &vt.MaxOutputLength.Value
@@ -8993,6 +10179,8 @@ func (u ResponseInputItemUnionParam) GetStatus() *string {
 	} else if vt := u.OfLocalShellCallOutput; vt != nil {
 		return (*string)(&vt.Status)
 	} else if vt := u.OfShellCall; vt != nil {
+		return (*string)(&vt.Status)
+	} else if vt := u.OfShellCallOutput; vt != nil {
 		return (*string)(&vt.Status)
 	} else if vt := u.OfApplyPatchCall; vt != nil {
 		return (*string)(&vt.Status)
@@ -9821,6 +11009,8 @@ type ResponseInputItemShellCallParam struct {
 	// The unique ID of the shell tool call. Populated when this item is returned via
 	// API.
 	ID param.Opt[string] `json:"id,omitzero"`
+	// The environment to execute the shell commands in.
+	Environment ResponseInputItemShellCallEnvironmentUnionParam `json:"environment,omitzero"`
 	// The status of the shell call. One of `in_progress`, `completed`, or
 	// `incomplete`.
 	//
@@ -9869,6 +11059,65 @@ func (r *ResponseInputItemShellCallActionParam) UnmarshalJSON(data []byte) error
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseInputItemShellCallEnvironmentUnionParam struct {
+	OfLocal              *LocalEnvironmentParam   `json:",omitzero,inline"`
+	OfContainerReference *ContainerReferenceParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseInputItemShellCallEnvironmentUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfLocal, u.OfContainerReference)
+}
+func (u *ResponseInputItemShellCallEnvironmentUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ResponseInputItemShellCallEnvironmentUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfLocal) {
+		return u.OfLocal
+	} else if !param.IsOmitted(u.OfContainerReference) {
+		return u.OfContainerReference
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemShellCallEnvironmentUnionParam) GetSkills() []LocalSkillParam {
+	if vt := u.OfLocal; vt != nil {
+		return vt.Skills
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemShellCallEnvironmentUnionParam) GetContainerID() *string {
+	if vt := u.OfContainerReference; vt != nil {
+		return &vt.ContainerID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemShellCallEnvironmentUnionParam) GetType() *string {
+	if vt := u.OfLocal; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfContainerReference; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ResponseInputItemShellCallEnvironmentUnionParam](
+		"type",
+		apijson.Discriminator[LocalEnvironmentParam]("local"),
+		apijson.Discriminator[ContainerReferenceParam]("container_reference"),
+	)
+}
+
 // The streamed output items emitted by a shell tool call.
 //
 // The properties CallID, Output, Type are required.
@@ -9884,6 +11133,10 @@ type ResponseInputItemShellCallOutputParam struct {
 	// The maximum number of UTF-8 characters captured for this shell call's combined
 	// output.
 	MaxOutputLength param.Opt[int64] `json:"max_output_length,omitzero"`
+	// The status of the shell call output.
+	//
+	// Any of "in_progress", "completed", "incomplete".
+	Status string `json:"status,omitzero"`
 	// The type of the item. Always `shell_call_output`.
 	//
 	// This field can be elided, and will marshal its zero value as
@@ -9898,6 +11151,12 @@ func (r ResponseInputItemShellCallOutputParam) MarshalJSON() (data []byte, err e
 }
 func (r *ResponseInputItemShellCallOutputParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponseInputItemShellCallOutputParam](
+		"status", "in_progress", "completed", "incomplete",
+	)
 }
 
 // A tool call representing a request to create, delete, or update files using diff
@@ -10520,8 +11779,10 @@ type ResponseItemUnion struct {
 	// This field is from variant [ResponseCodeInterpreterToolCall].
 	ContainerID string `json:"container_id"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
-	Outputs   []ResponseCodeInterpreterToolCallOutputUnion `json:"outputs"`
-	CreatedBy string                                       `json:"created_by"`
+	Outputs []ResponseCodeInterpreterToolCallOutputUnion `json:"outputs"`
+	// This field is from variant [ResponseFunctionShellToolCall].
+	Environment ResponseFunctionShellToolCallEnvironmentUnion `json:"environment"`
+	CreatedBy   string                                        `json:"created_by"`
 	// This field is from variant [ResponseFunctionShellToolCallOutput].
 	MaxOutputLength int64 `json:"max_output_length"`
 	// This field is from variant [ResponseApplyPatchToolCall].
@@ -10554,6 +11815,7 @@ type ResponseItemUnion struct {
 		Code                     respjson.Field
 		ContainerID              respjson.Field
 		Outputs                  respjson.Field
+		Environment              respjson.Field
 		CreatedBy                respjson.Field
 		MaxOutputLength          respjson.Field
 		Operation                respjson.Field
@@ -11200,6 +12462,24 @@ func (r *ResponseItemMcpCall) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Represents the use of a local environment to perform shell actions.
+type ResponseLocalEnvironment struct {
+	// The environment type. Always `local`.
+	Type constant.Local `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseLocalEnvironment) RawJSON() string { return r.JSON.raw }
+func (r *ResponseLocalEnvironment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Emitted when there is a delta (partial update) to the arguments of an MCP tool
 // call.
 type ResponseMcpCallArgumentsDeltaEvent struct {
@@ -11476,6 +12756,8 @@ type ResponseOutputItemUnion struct {
 	ContainerID string `json:"container_id"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
 	Outputs []ResponseCodeInterpreterToolCallOutputUnion `json:"outputs"`
+	// This field is from variant [ResponseFunctionShellToolCall].
+	Environment ResponseFunctionShellToolCallEnvironmentUnion `json:"environment"`
 	// This field is from variant [ResponseFunctionShellToolCallOutput].
 	MaxOutputLength int64 `json:"max_output_length"`
 	// This field is a union of [[]ResponseFunctionShellToolCallOutputOutput],
@@ -11511,6 +12793,7 @@ type ResponseOutputItemUnion struct {
 		Code                respjson.Field
 		ContainerID         respjson.Field
 		Outputs             respjson.Field
+		Environment         respjson.Field
 		MaxOutputLength     respjson.Field
 		Output              respjson.Field
 		Operation           respjson.Field
@@ -14868,6 +16151,59 @@ func (r *ResponseWebSearchCallSearchingEvent) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+type SkillReference struct {
+	// The ID of the referenced skill.
+	SkillID string `json:"skill_id,required"`
+	// References a skill created with the /v1/skills endpoint.
+	Type constant.SkillReference `json:"type,required"`
+	// Optional skill version. Use a positive integer or 'latest'. Omit for default.
+	Version string `json:"version"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		SkillID     respjson.Field
+		Type        respjson.Field
+		Version     respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r SkillReference) RawJSON() string { return r.JSON.raw }
+func (r *SkillReference) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this SkillReference to a SkillReferenceParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// SkillReferenceParam.Overrides()
+func (r SkillReference) ToParam() SkillReferenceParam {
+	return param.Override[SkillReferenceParam](json.RawMessage(r.RawJSON()))
+}
+
+// The properties SkillID, Type are required.
+type SkillReferenceParam struct {
+	// The ID of the referenced skill.
+	SkillID string `json:"skill_id,required"`
+	// Optional skill version. Use a positive integer or 'latest'. Omit for default.
+	Version param.Opt[string] `json:"version,omitzero"`
+	// References a skill created with the /v1/skills endpoint.
+	//
+	// This field can be elided, and will marshal its zero value as "skill_reference".
+	Type constant.SkillReference `json:"type,required"`
+	paramObj
+}
+
+func (r SkillReferenceParam) MarshalJSON() (data []byte, err error) {
+	type shadow SkillReferenceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *SkillReferenceParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // ToolUnion contains all possible properties and values from [FunctionTool],
 // [FileSearchTool], [ComputerTool], [WebSearchTool], [ToolMcp],
 // [ToolCodeInterpreter], [ToolImageGeneration], [ToolLocalShell],
@@ -14899,9 +16235,10 @@ type ToolUnion struct {
 	DisplayHeight int64 `json:"display_height"`
 	// This field is from variant [ComputerTool].
 	DisplayWidth int64 `json:"display_width"`
-	// This field is from variant [ComputerTool].
-	Environment       ComputerToolEnvironment `json:"environment"`
-	SearchContextSize string                  `json:"search_context_size"`
+	// This field is a union of [ComputerToolEnvironment],
+	// [FunctionShellToolEnvironmentUnion]
+	Environment       ToolUnionEnvironment `json:"environment"`
+	SearchContextSize string               `json:"search_context_size"`
 	// This field is a union of [WebSearchToolUserLocation],
 	// [WebSearchPreviewToolUserLocation]
 	UserLocation ToolUnionUserLocation `json:"user_location"`
@@ -14923,6 +16260,8 @@ type ToolUnion struct {
 	ServerURL string `json:"server_url"`
 	// This field is from variant [ToolCodeInterpreter].
 	Container ToolCodeInterpreterContainerUnion `json:"container"`
+	// This field is from variant [ToolImageGeneration].
+	Action string `json:"action"`
 	// This field is from variant [ToolImageGeneration].
 	Background string `json:"background"`
 	// This field is from variant [ToolImageGeneration].
@@ -14969,6 +16308,7 @@ type ToolUnion struct {
 		ServerDescription respjson.Field
 		ServerURL         respjson.Field
 		Container         respjson.Field
+		Action            respjson.Field
 		Background        respjson.Field
 		InputFidelity     respjson.Field
 		InputImageMask    respjson.Field
@@ -15076,6 +16416,71 @@ type ToolUnionFilters struct {
 }
 
 func (r *ToolUnionFilters) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolUnionEnvironment is an implicit subunion of [ToolUnion].
+// ToolUnionEnvironment provides convenient access to the sub-properties of the
+// union.
+//
+// For type safety it is recommended to directly use a variant of the [ToolUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfComputerToolEnvironment]
+type ToolUnionEnvironment struct {
+	// This field will be present if the value is a [ComputerToolEnvironment] instead
+	// of an object.
+	OfComputerToolEnvironment ComputerToolEnvironment `json:",inline"`
+	Type                      string                  `json:"type"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	FileIDs []string `json:"file_ids"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	MemoryLimit ContainerAutoMemoryLimit `json:"memory_limit"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	NetworkPolicy ContainerAutoNetworkPolicyUnion `json:"network_policy"`
+	// This field is a union of [[]ContainerAutoSkillUnion], [[]LocalSkill]
+	Skills ToolUnionEnvironmentSkills `json:"skills"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	ContainerID string `json:"container_id"`
+	JSON        struct {
+		OfComputerToolEnvironment respjson.Field
+		Type                      respjson.Field
+		FileIDs                   respjson.Field
+		MemoryLimit               respjson.Field
+		NetworkPolicy             respjson.Field
+		Skills                    respjson.Field
+		ContainerID               respjson.Field
+		raw                       string
+	} `json:"-"`
+}
+
+func (r *ToolUnionEnvironment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolUnionEnvironmentSkills is an implicit subunion of [ToolUnion].
+// ToolUnionEnvironmentSkills provides convenient access to the sub-properties of
+// the union.
+//
+// For type safety it is recommended to directly use a variant of the [ToolUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfContainerAutoSkills OfLocalSkillArray]
+type ToolUnionEnvironmentSkills struct {
+	// This field will be present if the value is a [[]ContainerAutoSkillUnion] instead
+	// of an object.
+	OfContainerAutoSkills []ContainerAutoSkillUnion `json:",inline"`
+	// This field will be present if the value is a [[]LocalSkill] instead of an
+	// object.
+	OfLocalSkillArray []LocalSkill `json:",inline"`
+	JSON              struct {
+		OfContainerAutoSkills respjson.Field
+		OfLocalSkillArray     respjson.Field
+		raw                   string
+	} `json:"-"`
+}
+
+func (r *ToolUnionEnvironmentSkills) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -15403,12 +16808,16 @@ type ToolCodeInterpreterContainerUnion struct {
 	// This field is from variant
 	// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
 	MemoryLimit string `json:"memory_limit"`
-	JSON        struct {
-		OfString    respjson.Field
-		Type        respjson.Field
-		FileIDs     respjson.Field
-		MemoryLimit respjson.Field
-		raw         string
+	// This field is from variant
+	// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
+	NetworkPolicy ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion `json:"network_policy"`
+	JSON          struct {
+		OfString      respjson.Field
+		Type          respjson.Field
+		FileIDs       respjson.Field
+		MemoryLimit   respjson.Field
+		NetworkPolicy respjson.Field
+		raw           string
 	} `json:"-"`
 }
 
@@ -15440,13 +16849,16 @@ type ToolCodeInterpreterContainerCodeInterpreterContainerAuto struct {
 	//
 	// Any of "1g", "4g", "16g", "64g".
 	MemoryLimit string `json:"memory_limit,nullable"`
+	// Network access policy for the container.
+	NetworkPolicy ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion `json:"network_policy"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Type        respjson.Field
-		FileIDs     respjson.Field
-		MemoryLimit respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Type          respjson.Field
+		FileIDs       respjson.Field
+		MemoryLimit   respjson.Field
+		NetworkPolicy respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
 	} `json:"-"`
 }
 
@@ -15456,10 +16868,89 @@ func (r *ToolCodeInterpreterContainerCodeInterpreterContainerAuto) UnmarshalJSON
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion contains
+// all possible properties and values from [ContainerNetworkPolicyDisabled],
+// [ContainerNetworkPolicyAllowlist].
+//
+// Use the
+// [ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion.AsAny]
+// method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion struct {
+	// Any of "disabled", "allowlist".
+	Type string `json:"type"`
+	// This field is from variant [ContainerNetworkPolicyAllowlist].
+	AllowedDomains []string `json:"allowed_domains"`
+	// This field is from variant [ContainerNetworkPolicyAllowlist].
+	DomainSecrets []ContainerNetworkPolicyDomainSecret `json:"domain_secrets"`
+	JSON          struct {
+		Type           respjson.Field
+		AllowedDomains respjson.Field
+		DomainSecrets  respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// anyToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicy is
+// implemented by each variant of
+// [ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion] to add
+// type safety for the return type of
+// [ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion.AsAny]
+type anyToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicy interface {
+	implToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion()
+}
+
+func (ContainerNetworkPolicyDisabled) implToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion() {
+}
+func (ContainerNetworkPolicyAllowlist) implToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion() {
+}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion.AsAny().(type) {
+//	case responses.ContainerNetworkPolicyDisabled:
+//	case responses.ContainerNetworkPolicyAllowlist:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) AsAny() anyToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicy {
+	switch u.Type {
+	case "disabled":
+		return u.AsDisabled()
+	case "allowlist":
+		return u.AsAllowlist()
+	}
+	return nil
+}
+
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) AsDisabled() (v ContainerNetworkPolicyDisabled) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) AsAllowlist() (v ContainerNetworkPolicyAllowlist) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // A tool that generates images using the GPT image models.
 type ToolImageGeneration struct {
 	// The type of the image generation tool. Always `image_generation`.
 	Type constant.ImageGeneration `json:"type,required"`
+	// Whether to generate a new image or edit an existing image. Default: `auto`.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action"`
 	// Background type for the generated image. One of `transparent`, `opaque`, or
 	// `auto`. Default: `auto`.
 	//
@@ -15467,8 +16958,8 @@ type ToolImageGeneration struct {
 	Background string `json:"background"`
 	// Control how much effort the model will exert to match the style and features,
 	// especially facial features, of input images. This parameter is only supported
-	// for `gpt-image-1`. Unsupported for `gpt-image-1-mini`. Supports `high` and
-	// `low`. Defaults to `low`.
+	// for `gpt-image-1` and `gpt-image-1.5` and later models, unsupported for
+	// `gpt-image-1-mini`. Supports `high` and `low`. Defaults to `low`.
 	//
 	// Any of "high", "low".
 	InputFidelity string `json:"input_fidelity,nullable"`
@@ -15504,6 +16995,7 @@ type ToolImageGeneration struct {
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type              respjson.Field
+		Action            respjson.Field
 		Background        respjson.Field
 		InputFidelity     respjson.Field
 		InputImageMask    respjson.Field
@@ -15747,14 +17239,6 @@ func (u ToolUnionParam) GetDisplayWidth() *int64 {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
-func (u ToolUnionParam) GetEnvironment() *string {
-	if vt := u.OfComputerUsePreview; vt != nil {
-		return (*string)(&vt.Environment)
-	}
-	return nil
-}
-
-// Returns a pointer to the underlying variant's property, if present.
 func (u ToolUnionParam) GetServerLabel() *string {
 	if vt := u.OfMcp; vt != nil {
 		return &vt.ServerLabel
@@ -15822,6 +17306,14 @@ func (u ToolUnionParam) GetServerURL() *string {
 func (u ToolUnionParam) GetContainer() *ToolCodeInterpreterContainerUnionParam {
 	if vt := u.OfCodeInterpreter; vt != nil {
 		return &vt.Container
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolUnionParam) GetAction() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Action
 	}
 	return nil
 }
@@ -16045,6 +17537,104 @@ func (u toolUnionParamFilters) GetType() *string {
 	}
 	return nil
 }
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ToolUnionParam) GetEnvironment() (res toolUnionParamEnvironment) {
+	if vt := u.OfComputerUsePreview; vt != nil {
+		res.any = (*string)(&vt.Environment)
+	} else if vt := u.OfShell; vt != nil {
+		res.any = vt.Environment.asAny()
+	}
+	return
+}
+
+// Can have the runtime types [*string], [*ContainerAutoParam],
+// [*LocalEnvironmentParam], [*ContainerReferenceParam]
+type toolUnionParamEnvironment struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *string:
+//	case *responses.ContainerAutoParam:
+//	case *responses.LocalEnvironmentParam:
+//	case *responses.ContainerReferenceParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamEnvironment) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamEnvironment) GetFileIDs() []string {
+	switch vt := u.any.(type) {
+	case *FunctionShellToolEnvironmentUnionParam:
+		return vt.GetFileIDs()
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamEnvironment) GetMemoryLimit() *string {
+	switch vt := u.any.(type) {
+	case *FunctionShellToolEnvironmentUnionParam:
+		return vt.GetMemoryLimit()
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamEnvironment) GetNetworkPolicy() *ContainerAutoNetworkPolicyUnionParam {
+	switch vt := u.any.(type) {
+	case *FunctionShellToolEnvironmentUnionParam:
+		return vt.GetNetworkPolicy()
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamEnvironment) GetContainerID() *string {
+	switch vt := u.any.(type) {
+	case *FunctionShellToolEnvironmentUnionParam:
+		return vt.GetContainerID()
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamEnvironment) GetType() *string {
+	switch vt := u.any.(type) {
+	case *FunctionShellToolEnvironmentUnionParam:
+		return vt.GetType()
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamEnvironment) GetSkills() (res toolUnionParamEnvironmentSkills) {
+	switch vt := u.any.(type) {
+	case *FunctionShellToolEnvironmentUnionParam:
+		res.any = vt.GetSkills()
+	}
+	return res
+}
+
+// Can have the runtime types [_[]ContainerAutoSkillUnionParam],
+// [_[]LocalSkillParam]
+type toolUnionParamEnvironmentSkills struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *[]responses.ContainerAutoSkillUnionParam:
+//	case *[]responses.LocalSkillParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamEnvironmentSkills) AsAny() any { return u.any }
 
 // Returns a subunion which exports methods to access subproperties
 //
@@ -16401,6 +17991,8 @@ type ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam struct {
 	MemoryLimit string `json:"memory_limit,omitzero"`
 	// An optional list of uploaded files to make available to your code.
 	FileIDs []string `json:"file_ids,omitzero"`
+	// Network access policy for the container.
+	NetworkPolicy ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam `json:"network_policy,omitzero"`
 	// Always `auto`.
 	//
 	// This field can be elided, and will marshal its zero value as "auto".
@@ -16422,6 +18014,65 @@ func init() {
 	)
 }
 
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam struct {
+	OfDisabled  *ContainerNetworkPolicyDisabledParam  `json:",omitzero,inline"`
+	OfAllowlist *ContainerNetworkPolicyAllowlistParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfDisabled, u.OfAllowlist)
+}
+func (u *ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfDisabled) {
+		return u.OfDisabled
+	} else if !param.IsOmitted(u.OfAllowlist) {
+		return u.OfAllowlist
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) GetAllowedDomains() []string {
+	if vt := u.OfAllowlist; vt != nil {
+		return vt.AllowedDomains
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) GetDomainSecrets() []ContainerNetworkPolicyDomainSecretParam {
+	if vt := u.OfAllowlist; vt != nil {
+		return vt.DomainSecrets
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) GetType() *string {
+	if vt := u.OfDisabled; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfAllowlist; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam](
+		"type",
+		apijson.Discriminator[ContainerNetworkPolicyDisabledParam]("disabled"),
+		apijson.Discriminator[ContainerNetworkPolicyAllowlistParam]("allowlist"),
+	)
+}
+
 // A tool that generates images using the GPT image models.
 //
 // The property Type is required.
@@ -16433,11 +18084,15 @@ type ToolImageGenerationParam struct {
 	PartialImages param.Opt[int64] `json:"partial_images,omitzero"`
 	// Control how much effort the model will exert to match the style and features,
 	// especially facial features, of input images. This parameter is only supported
-	// for `gpt-image-1`. Unsupported for `gpt-image-1-mini`. Supports `high` and
-	// `low`. Defaults to `low`.
+	// for `gpt-image-1` and `gpt-image-1.5` and later models, unsupported for
+	// `gpt-image-1-mini`. Supports `high` and `low`. Defaults to `low`.
 	//
 	// Any of "high", "low".
 	InputFidelity string `json:"input_fidelity,omitzero"`
+	// Whether to generate a new image or edit an existing image. Default: `auto`.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action,omitzero"`
 	// Background type for the generated image. One of `transparent`, `opaque`, or
 	// `auto`. Default: `auto`.
 	//
@@ -16483,6 +18138,9 @@ func (r *ToolImageGenerationParam) UnmarshalJSON(data []byte) error {
 }
 
 func init() {
+	apijson.RegisterFieldValidator[ToolImageGenerationParam](
+		"action", "generate", "edit", "auto",
+	)
 	apijson.RegisterFieldValidator[ToolImageGenerationParam](
 		"background", "transparent", "opaque", "auto",
 	)
@@ -17422,6 +19080,8 @@ type ResponseNewParams struct {
 	// similar requests and to help OpenAI detect and prevent abuse.
 	// [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).
 	User param.Opt[string] `json:"user,omitzero"`
+	// Context management configuration for this request.
+	ContextManagement []ResponseNewParamsContextManagement `json:"context_management,omitzero"`
 	// The conversation that this response belongs to. Items from this conversation are
 	// prepended to `input_items` for this response request. Input items and output
 	// items from this response are automatically added to this conversation after this
@@ -17553,6 +19213,23 @@ func (r ResponseNewParams) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ResponseNewParams) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The property Type is required.
+type ResponseNewParamsContextManagement struct {
+	// The context management entry type. Currently only 'compaction' is supported.
+	Type string `json:"type,required"`
+	// Token threshold at which compaction should be triggered for this entry.
+	CompactThreshold param.Opt[int64] `json:"compact_threshold,omitzero"`
+	paramObj
+}
+
+func (r ResponseNewParamsContextManagement) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseNewParamsContextManagement
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseNewParamsContextManagement) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 

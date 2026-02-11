@@ -44,8 +44,8 @@ func NewFileService(opts ...option.RequestOption) (r FileService) {
 }
 
 // Upload a file that can be used across various endpoints. Individual files can be
-// up to 512 MB, and the size of all files uploaded by one organization can be up
-// to 1 TB.
+// up to 512 MB, and each project can store up to 2.5 TB of files in total. There
+// is no organization-wide storage limit.
 //
 //   - The Assistants API supports files up to 2 million tokens and of specific file
 //     types. See the
@@ -231,10 +231,14 @@ const (
 	FileObjectStatusError     FileObjectStatus = "error"
 )
 
-// The intended purpose of the uploaded file. One of: - `assistants`: Used in the
-// Assistants API - `batch`: Used in the Batch API - `fine-tune`: Used for
-// fine-tuning - `vision`: Images used for vision fine-tuning - `user_data`:
-// Flexible file type for any purpose - `evals`: Used for eval data sets
+// The intended purpose of the uploaded file. One of:
+//
+// - `assistants`: Used in the Assistants API
+// - `batch`: Used in the Batch API
+// - `fine-tune`: Used for fine-tuning
+// - `vision`: Images used for vision fine-tuning
+// - `user_data`: Flexible file type for any purpose
+// - `evals`: Used for eval data sets
 type FilePurpose string
 
 const (
@@ -249,10 +253,14 @@ const (
 type FileNewParams struct {
 	// The File object (not file name) to be uploaded.
 	File io.Reader `json:"file,omitzero,required" format:"binary"`
-	// The intended purpose of the uploaded file. One of: - `assistants`: Used in the
-	// Assistants API - `batch`: Used in the Batch API - `fine-tune`: Used for
-	// fine-tuning - `vision`: Images used for vision fine-tuning - `user_data`:
-	// Flexible file type for any purpose - `evals`: Used for eval data sets
+	// The intended purpose of the uploaded file. One of:
+	//
+	// - `assistants`: Used in the Assistants API
+	// - `batch`: Used in the Batch API
+	// - `fine-tune`: Used for fine-tuning
+	// - `vision`: Images used for vision fine-tuning
+	// - `user_data`: Flexible file type for any purpose
+	// - `evals`: Used for eval data sets
 	//
 	// Any of "assistants", "batch", "fine-tune", "vision", "user_data", "evals".
 	Purpose FilePurpose `json:"purpose,omitzero,required"`
