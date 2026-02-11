@@ -11,14 +11,14 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/Nordlys-Labs/openai-go/internal/apiform"
-	"github.com/Nordlys-Labs/openai-go/internal/apijson"
-	"github.com/Nordlys-Labs/openai-go/internal/requestconfig"
-	"github.com/Nordlys-Labs/openai-go/option"
-	"github.com/Nordlys-Labs/openai-go/packages/param"
-	"github.com/Nordlys-Labs/openai-go/packages/respjson"
-	"github.com/Nordlys-Labs/openai-go/packages/ssestream"
-	"github.com/Nordlys-Labs/openai-go/shared/constant"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/apiform"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/apijson"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/respjson"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/ssestream"
+	"github.com/Nordlys-Labs/openai-go/v3/shared/constant"
 )
 
 // AudioTranscriptionService contains methods and other services that help with

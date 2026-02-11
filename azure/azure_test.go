@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/internal/apijson"
-	"github.com/Nordlys-Labs/openai-go/internal/requestconfig"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/apijson"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
 )
 
 func TestJSONRoute(t *testing.T) {

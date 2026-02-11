@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/conversations"
-	"github.com/Nordlys-Labs/openai-go/internal/testutil"
-	"github.com/Nordlys-Labs/openai-go/option"
-	"github.com/Nordlys-Labs/openai-go/responses"
+	"github.com/Nordlys-Labs/openai-go/v3/conversations"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/testutil"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go/v3/responses"
 )
 
 func TestItemNewWithOptionalParams(t *testing.T) {

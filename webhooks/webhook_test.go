@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/option"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
 )
 
 // Standardized test constants (matches TypeScript implementation)

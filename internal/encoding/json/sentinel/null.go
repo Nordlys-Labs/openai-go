@@ -1,7 +1,7 @@
 package sentinel
 
 import (
-	"github.com/Nordlys-Labs/openai-go/internal/encoding/json/shims"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/encoding/json/shims"
 	"reflect"
 	"sync"
 )

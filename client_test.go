@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/internal"
-	"github.com/Nordlys-Labs/openai-go/option"
-	"github.com/Nordlys-Labs/openai-go/shared"
+	"github.com/Nordlys-Labs/openai-go/v3/internal"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go/v3/shared"
 )
 
 type closureTransport struct {

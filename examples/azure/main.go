@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/azure"
-	"github.com/Nordlys-Labs/openai-go/responses"
+	"github.com/Nordlys-Labs/openai-go/v3/azure"
+	"github.com/Nordlys-Labs/openai-go/v3/responses"
 )
 
 func main() {

@@ -3,8 +3,8 @@ package responses_test
 import (
 	"testing"
 
-	"github.com/Nordlys-Labs/openai-go/responses"
-	"github.com/Nordlys-Labs/openai-go/shared/constant"
+	"github.com/Nordlys-Labs/openai-go/v3/responses"
+	"github.com/Nordlys-Labs/openai-go/v3/shared/constant"
 )
 
 func TestResponseAccumulator_BasicLifecycle(t *testing.T) {

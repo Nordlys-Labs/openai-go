@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/packages/ssestream"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/ssestream"
 )
 
 // mockDecoder is a test helper that implements the Decoder interface

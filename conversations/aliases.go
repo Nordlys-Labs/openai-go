@@ -3,9 +3,9 @@
 package conversations
 
 import (
-	"github.com/Nordlys-Labs/openai-go/internal/apierror"
-	"github.com/Nordlys-Labs/openai-go/packages/param"
-	"github.com/Nordlys-Labs/openai-go/shared"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/apierror"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
+	"github.com/Nordlys-Labs/openai-go/v3/shared"
 )
 
 // aliased to make [param.APIUnion] private when embedding

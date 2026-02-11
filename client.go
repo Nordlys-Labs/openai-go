@@ -8,12 +8,12 @@ import (
 	"os"
 	"slices"
 
-	"github.com/Nordlys-Labs/openai-go/conversations"
-	"github.com/Nordlys-Labs/openai-go/internal/requestconfig"
-	"github.com/Nordlys-Labs/openai-go/option"
-	"github.com/Nordlys-Labs/openai-go/realtime"
-	"github.com/Nordlys-Labs/openai-go/responses"
-	"github.com/Nordlys-Labs/openai-go/webhooks"
+	"github.com/Nordlys-Labs/openai-go/v3/conversations"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go/v3/realtime"
+	"github.com/Nordlys-Labs/openai-go/v3/responses"
+	"github.com/Nordlys-Labs/openai-go/v3/webhooks"
 )
 
 // Client creates a struct with services and top level methods that help with

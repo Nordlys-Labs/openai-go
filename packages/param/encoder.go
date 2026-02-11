@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	shimjson "github.com/Nordlys-Labs/openai-go/internal/encoding/json"
+	shimjson "github.com/Nordlys-Labs/openai-go/v3/internal/encoding/json"
 
 	"github.com/tidwall/sjson"
 )

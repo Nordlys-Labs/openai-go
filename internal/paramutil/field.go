@@ -1,8 +1,8 @@
 package paramutil
 
 import (
-	"github.com/Nordlys-Labs/openai-go/packages/param"
-	"github.com/Nordlys-Labs/openai-go/packages/respjson"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/respjson"
 )
 
 func AddrIfPresent[T comparable](v param.Opt[T]) *T {

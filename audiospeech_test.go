@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/Nordlys-Labs/openai-go"
-	"github.com/Nordlys-Labs/openai-go/option"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
 )
 
 func TestAudioSpeechNewWithOptionalParams(t *testing.T) {

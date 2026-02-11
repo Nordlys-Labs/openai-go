@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	shimjson "github.com/Nordlys-Labs/openai-go/internal/encoding/json"
+	shimjson "github.com/Nordlys-Labs/openai-go/v3/internal/encoding/json"
 )
 
 func NewOpt[T comparable](v T) Opt[T] {

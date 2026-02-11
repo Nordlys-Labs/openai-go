@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"slices"
 
-	"github.com/Nordlys-Labs/openai-go/internal/apiquery"
-	"github.com/Nordlys-Labs/openai-go/internal/requestconfig"
-	"github.com/Nordlys-Labs/openai-go/option"
-	"github.com/Nordlys-Labs/openai-go/packages/pagination"
-	"github.com/Nordlys-Labs/openai-go/packages/param"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/apiquery"
+	"github.com/Nordlys-Labs/openai-go/v3/internal/requestconfig"
+	"github.com/Nordlys-Labs/openai-go/v3/option"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/pagination"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
 )
 
 // ChatCompletionMessageService contains methods and other services that help with

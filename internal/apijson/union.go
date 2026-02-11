@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/Nordlys-Labs/openai-go/packages/param"
+	"github.com/Nordlys-Labs/openai-go/v3/packages/param"
 
 	"github.com/tidwall/gjson"
 )
